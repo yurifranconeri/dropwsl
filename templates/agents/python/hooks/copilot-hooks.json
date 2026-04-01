@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "postToolUse": [
+      {
+        "toolName": "editFiles",
+        "command": "ruff",
+        "args": ["check", "--fix", "."]
+      }
+    ],
+    "stop": [
+      {
+        "command": "pytest",
+        "args": ["--tb=short", "-q"]
+      }
+    ]
+  }
+}

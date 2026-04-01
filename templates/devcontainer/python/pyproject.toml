@@ -1,0 +1,75 @@
+[build-system]
+requires = ["setuptools>=75.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "my-project"
+version = "0.1.0"
+description = ""
+requires-python = ">=3.12"
+
+# =============================================================================
+# Ruff -- linter and formatter (replaces flake8, isort, black)
+# Docs: https://docs.astral.sh/ruff/configuration/
+# =============================================================================
+[tool.ruff]
+target-version = "py312"
+line-length = 120
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # isort (import sorting)
+    "N",    # pep8-naming
+    "UP",   # pyupgrade (modernize syntax)
+    "B",    # flake8-bugbear (common bugs)
+    "S",    # flake8-bandit (security)
+    "A",    # flake8-builtins (shadowing builtins)
+    "T20",  # flake8-print (print statements)
+    "RET",  # flake8-return
+    "SIM",  # flake8-simplify
+    "C4",   # flake8-comprehensions (unnecessary comprehensions)
+    "PIE",  # flake8-pie (misc: unnecessary pass, etc.)
+    "RSE",  # flake8-raise (raise without cause, etc.)
+]
+ignore = [
+    "B008",  # function-call-in-default-argument -- canonical FastAPI pattern (Depends)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = [
+    "S101",  # assert allowed in tests
+    "T20",   # print allowed in tests
+]
+
+[tool.ruff.format]
+quote-style = "double"
+docstring-code-format = true
+
+# =============================================================================
+# Pytest -- test framework
+# Docs: https://docs.pytest.org/en/stable/reference/customize.html
+# =============================================================================
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-v -x --strict-markers --strict-config --tb=short"
+markers = [
+    "integration: tests with real database (testcontainers)",
+    "smoke: post-deploy connectivity tests",
+]
+
+# =============================================================================
+# Coverage -- test coverage
+# Docs: https://coverage.readthedocs.io/en/latest/config.html
+# =============================================================================
+[tool.coverage.run]
+source = ["."]
+omit = ["tests/*", "*/venv/*", "*/site-packages/*"]
+
+[tool.coverage.report]
+show_missing = true
+skip_empty = true
+fail_under = 0

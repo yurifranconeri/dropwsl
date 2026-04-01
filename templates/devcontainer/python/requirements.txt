@@ -1,0 +1,9 @@
+# requirements.txt -- add your dependencies here
+# Exemplos:
+# fastapi>=0.115
+# uvicorn[standard]>=0.30
+# requests>=2.32
+#
+# Supply-chain security (produção):
+#   pip-compile --generate-hashes requirements.in -o requirements.txt
+#   pip install --require-hashes -r requirements.txt

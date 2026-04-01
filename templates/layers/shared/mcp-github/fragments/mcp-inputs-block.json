@@ -1,0 +1,8 @@
+  "inputs": [
+    {
+      "id": "github-pat",
+      "type": "promptString",
+      "description": "GitHub Personal Access Token (repo scope)",
+      "password": true
+    }
+  ],

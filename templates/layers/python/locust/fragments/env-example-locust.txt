@@ -1,0 +1,2 @@
+# Locust — host alvo para load test
+LOCUST_HOST=http://localhost:8000

@@ -1,0 +1,3 @@
+
+# Redis — configure com os dados do seu servidor
+REDIS_URL=redis://host:6379/0

@@ -1,0 +1,9 @@
+# Gitleaks config — adicione allowlists para suprimir falsos positivos.
+# Docs: https://github.com/gitleaks/gitleaks#configuration
+title = "gitleaks config"
+
+[allowlist]
+  description = "Allowlist global"
+  paths = [
+    '''\.gitleaks\.toml''',
+  ]

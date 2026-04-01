@@ -1,0 +1,59 @@
+name: Bug Report
+description: Report a bug or unexpected behavior
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What happened and what did you expect?
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Run `dropwsl new myapp python --with ...`
+        2. ...
+        3. See error
+    validations:
+      required: true
+
+  - type: textarea
+    id: output
+    attributes:
+      label: Error output
+      description: Relevant terminal output or log messages.
+      render: text
+
+  - type: input
+    id: dropwsl-version
+    attributes:
+      label: dropwsl version
+      description: "`dropwsl --version`"
+      placeholder: "v0.1.0"
+    validations:
+      required: true
+
+  - type: input
+    id: windows-version
+    attributes:
+      label: Windows version
+      description: "`winver` or `[System.Environment]::OSVersion.Version`"
+      placeholder: "Windows 11 23H2"
+
+  - type: input
+    id: wsl-distro
+    attributes:
+      label: WSL distro
+      description: "`wsl -l -v`"
+      placeholder: "Ubuntu-24.04 (WSL 2)"
+
+  - type: textarea
+    id: doctor
+    attributes:
+      label: "`dropwsl doctor` output"
+      render: text

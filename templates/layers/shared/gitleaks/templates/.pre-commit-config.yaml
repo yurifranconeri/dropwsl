@@ -1,0 +1,7 @@
+# pre-commit hooks — rode `pre-commit install` para ativar.
+# Docs: https://pre-commit.com
+repos:
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: {{GITLEAKS_VERSION}}
+    hooks:
+      - id: gitleaks

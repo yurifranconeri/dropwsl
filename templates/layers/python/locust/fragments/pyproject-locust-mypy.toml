@@ -1,0 +1,4 @@
+
+[[tool.mypy.overrides]]
+module = "locustfile"
+disallow_untyped_calls = false

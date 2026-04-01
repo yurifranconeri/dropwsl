@@ -1,0 +1,2 @@
+  "initializeCommand": "cd ${localWorkspaceFolder} && docker compose down --remove-orphans 2>/dev/null; docker compose up --no-start --no-build --pull never 2>/dev/null || true",
+  "runArgs": ["--network={{NET_NAME}}"],

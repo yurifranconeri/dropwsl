@@ -1,0 +1,17 @@
+
+# Mypy -- static type checking
+# =============================================================================
+# Docs: https://mypy.readthedocs.io/en/stable/config_file.html
+# =============================================================================
+[tool.mypy]
+python_version = "{{PY_VERSION}}"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_untyped_decorators = false
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
+disallow_incomplete_defs = false

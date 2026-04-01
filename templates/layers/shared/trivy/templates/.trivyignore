@@ -1,0 +1,4 @@
+# Trivy — adicione CVEs para suprimir falsos positivos (um por linha).
+# Docs: https://aquasecurity.github.io/trivy/latest/docs/configuration/filtering/
+# Exemplo:
+# CVE-2024-12345

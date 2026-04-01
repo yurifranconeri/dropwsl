@@ -1,0 +1,5 @@
+
+  // Azure CLI for `az login` inside the dev container (DefaultAzureCredential)
+  "features": {
+    "ghcr.io/devcontainers/features/azure-cli:1": {}
+  },

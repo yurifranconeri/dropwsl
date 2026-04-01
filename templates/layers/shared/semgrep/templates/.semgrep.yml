@@ -1,0 +1,4 @@
+# Semgrep -- SAST rules-based, multi-language.
+# Docs: https://semgrep.dev/docs/
+# To run: semgrep scan --config auto .
+rules: []

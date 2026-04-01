@@ -1,0 +1,20 @@
+# Config fixture — minimal, docker disabled
+distro:
+  supported:
+    - ubuntu
+  min_versions:
+    ubuntu: "22.04"
+
+core:
+  docker:
+    enabled: false
+  kubectl:
+    enabled: false
+  kind:
+    enabled: false
+  helm:
+    enabled: false
+  azure-cli:
+    enabled: false
+  github-cli:
+    enabled: false

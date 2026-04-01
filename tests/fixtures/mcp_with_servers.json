@@ -1,0 +1,8 @@
+{
+  "servers": {
+    "existing-server": {
+      "type": "stdio",
+      "command": "test"
+    }
+  }
+}

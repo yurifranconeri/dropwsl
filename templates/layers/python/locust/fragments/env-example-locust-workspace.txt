@@ -1,0 +1,2 @@
+# Locust — host alvo para load test dentro da rede compose do workspace
+LOCUST_HOST=http://target-service:8000

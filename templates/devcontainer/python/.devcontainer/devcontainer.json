@@ -1,0 +1,58 @@
+{
+  "name": "Python Dev",
+  // Same Python version as production (3.12). Update both Dockerfiles together.
+  // Dev uses bookworm (full) for debug tools; prod uses slim-bookworm (minimal).
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": ".."
+  },
+
+  // Docker socket from host -> container (replaces docker-outside-of-docker feature)
+  "mounts": [
+    "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind"
+  ],
+
+  "remoteUser": "vscode",
+  "updateRemoteUserUID": true,
+
+  // Same env vars as production Dockerfile — disables .pyc and log buffering
+  "containerEnv": {
+    "PYTHONDONTWRITEBYTECODE": "1",
+    "PYTHONUNBUFFERED": "1"
+  },
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "charliermarsh.ruff",
+        "GitHub.copilot-chat",
+        "EditorConfig.EditorConfig",
+        "eamodio.gitlens",
+        "ms-azuretools.vscode-docker"
+      ],
+      "settings": {
+        "[python]": {
+          "editor.defaultFormatter": "charliermarsh.ruff",
+          "editor.formatOnSave": true
+        },
+        "python.defaultInterpreterPath": "/opt/venv/bin/python",
+        "python.testing.pytestEnabled": true,
+        "python.testing.pytestArgs": ["tests"],
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "terminal.integrated.profiles.linux": {
+          "bash": { "path": "/bin/bash" }
+        }
+      }
+    }
+  },
+
+  // postCreateCommand: installs dependencies and validates the environment (lint + tests).
+  // Script in .devcontainer/post-create.sh for readability and maintainability.
+  "postCreateCommand": "bash .devcontainer/post-create.sh",
+
+  // Fixes Docker socket permissions for the docker group inside the container.
+  // The socket mounted from the host may have a different GID than the internal docker group.
+  "postStartCommand": "sudo chmod 666 /var/run/docker.sock 2>/dev/null || true"
+}

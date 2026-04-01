@@ -1,0 +1,9 @@
+  locust:
+    image: locustio/locust
+    ports:
+      - "8089:8089"
+    volumes:
+      - ./locustfile.py:/mnt/locust/locustfile.py
+    environment:
+      LOCUST_LOCUSTFILE: /mnt/locust/locustfile.py
+      LOCUST_HOST: ${LOCUST_HOST:-http://localhost:8000}

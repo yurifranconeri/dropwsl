@@ -1,0 +1,3 @@
+
+[project.scripts]
+{{NAME}} = "{{PACKAGE_NAME}}.main:main"

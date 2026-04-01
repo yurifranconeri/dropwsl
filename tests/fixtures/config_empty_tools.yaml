@@ -1,0 +1,8 @@
+# Config fixture — core section without tools
+distro:
+  supported:
+    - ubuntu
+  min_versions:
+    ubuntu: "22.04"
+
+core:

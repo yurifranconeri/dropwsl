@@ -1,0 +1,20 @@
+# Config fixture — version key appears under both distro and core sections
+distro:
+  supported:
+    - ubuntu
+  min_versions:
+    ubuntu: "22.04"
+
+core:
+  docker:
+    enabled: true
+  kubectl:
+    enabled: true
+    version: "1.34"
+
+# "version" also appears at top-level (simulating homonymous key)
+version: "should-not-leak"
+
+vscode:
+  extensions:
+    - ms-vscode-remote.remote-wsl

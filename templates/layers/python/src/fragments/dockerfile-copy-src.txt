@@ -1,0 +1,2 @@
+COPY requirements.txt pyproject.toml ./
+COPY src/ src/

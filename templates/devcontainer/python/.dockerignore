@@ -1,0 +1,30 @@
+# Prevents copying unnecessary files into the Docker image (COPY . .)
+# Note: *.md excludes README.md, etc. If you need .md files at
+# runtime (e.g. templates), remove the line or use negation (!README.md).
+.git/
+.gitignore
+.devcontainer/
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+.env.*
+.coverage
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+dist/
+build/
+.vscode/
+.idea/
+*.md
+LICENSE
+Dockerfile
+.dockerignore
+tests/
+.env.example
+.editorconfig
+.gitattributes

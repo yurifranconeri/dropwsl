@@ -1,0 +1,6 @@
+
+# PostgreSQL
+DATABASE_URL=postgresql+psycopg://postgres:changeme@postgres:5432/{{DB_NAME}}
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=changeme
+POSTGRES_DB={{DB_NAME}}

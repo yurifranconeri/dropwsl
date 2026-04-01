@@ -1,0 +1,5 @@
+# requirements-dev.txt — dependencias de desenvolvimento
+# Instaladas automaticamente pelo Dev Container (postCreateCommand)
+pytest>=8.0
+pytest-cov>=6.0
+ruff>=0.8

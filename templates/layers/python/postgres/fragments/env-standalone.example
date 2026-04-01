@@ -1,0 +1,3 @@
+
+# PostgreSQL — configure com os dados do seu servidor
+DATABASE_URL=postgresql+psycopg://user:pass@host:5432/dbname

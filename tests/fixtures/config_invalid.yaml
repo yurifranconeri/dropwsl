@@ -1,0 +1,4 @@
+# Config fixture — invalid / incomplete YAML
+distro:
+  supported:
+  min_versions:

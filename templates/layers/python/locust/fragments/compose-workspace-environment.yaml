@@ -1,0 +1,2 @@
+    environment:
+      LOCUST_HOST: ${LOCUST_HOST:-http://target-service:8000}

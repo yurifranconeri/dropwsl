@@ -1,0 +1,4 @@
+markers = [
+    "integration: tests with real database (testcontainers)",
+    "smoke: post-deploy connectivity tests",
+]
