@@ -1,0 +1,4 @@
+# -- dropwsl:streamlit-auth --
+streamlit-authenticator>=0.4.1,<0.5.0
+bcrypt>=4.1.2,<5.0.0
+PyYAML>=6.0.1,<7.0.0

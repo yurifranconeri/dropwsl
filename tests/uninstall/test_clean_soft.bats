@@ -83,6 +83,26 @@ teardown() {
   assert_failure
 }
 
+@test "post-clean: dotnet removed" {
+  run command -v dotnet
+  assert_failure
+}
+
+@test "post-clean: pac cli removed" {
+  run command -v pac
+  assert_failure
+}
+
+@test "post-clean: nodejs removed" {
+  run command -v node
+  assert_failure
+}
+
+@test "post-clean: bun removed" {
+  run command -v bun
+  assert_failure
+}
+
 @test "post-clean: GCM git config unset" {
   local helper
   helper="$(git config --global credential.helper 2>/dev/null || true)"
@@ -98,6 +118,8 @@ teardown() {
   [[ ! -f /etc/apt/sources.list.d/kubernetes.list ]]
   [[ ! -f /etc/apt/sources.list.d/azure-cli.list ]]
   [[ ! -f /etc/apt/sources.list.d/github-cli.list ]]
+  [[ ! -f /etc/apt/sources.list.d/nodesource.list ]]
+  [[ ! -f /etc/apt/sources.list.d/microsoft-prod.list ]]
 }
 
 @test "post-clean: apt keyrings cleaned" {
@@ -105,6 +127,7 @@ teardown() {
   [[ ! -f /etc/apt/keyrings/kubernetes-apt-keyring.gpg ]]
   [[ ! -f /etc/apt/keyrings/microsoft.gpg ]]
   [[ ! -f /etc/apt/keyrings/githubcli-archive-keyring.gpg ]]
+  [[ ! -f /etc/apt/keyrings/nodesource.gpg ]]
 }
 
 @test "post-clean: daemon.json removed" {

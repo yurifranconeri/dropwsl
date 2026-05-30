@@ -127,28 +127,31 @@ _apply_with_order() {
   [ -f "${project}/tests/fixtures/cache.py" ]
 }
 
-# ---- azure-identity: order should not matter (infra phase) ----
+# ---- azure-identity: order should not matter (infra phase, self-contained) ----
 
-@test "order: azure-identity before postgres — health includes both" {
+@test "order: azure-identity before postgres — postgres health present, identity self-contained" {
   local project
   project="$(_apply_with_order "src,fastapi,compose,azure-identity,postgres")"
   local main_py="${project}/src/testapp/main.py"
-  grep -Fq 'health_status["azure_identity"]' "$main_py"
   grep -Fq 'health_status["postgres"]' "$main_py"
+  ! grep -Fq 'health_status["azure_identity"]' "$main_py"
+  assert [ -f "${project}/src/testapp/auth/router.py" ]
 }
 
-@test "order: azure-identity after postgres — health still includes both" {
+@test "order: azure-identity after postgres — same outcome regardless of order" {
   local project
   project="$(_apply_with_order "src,fastapi,compose,postgres,azure-identity")"
   local main_py="${project}/src/testapp/main.py"
-  grep -Fq 'health_status["azure_identity"]' "$main_py"
   grep -Fq 'health_status["postgres"]' "$main_py"
+  ! grep -Fq 'health_status["azure_identity"]' "$main_py"
+  assert [ -f "${project}/src/testapp/auth/router.py" ]
 }
 
-@test "order: azure-identity alone with fastapi — /api/identity route present" {
+@test "order: azure-identity alone with fastapi — router lives in auth/router.py" {
   local project
   project="$(_apply_with_order "src,fastapi,azure-identity")"
   local main_py="${project}/src/testapp/main.py"
-  grep -Fq '/api/identity' "$main_py"
-  grep -Fq 'credential_health' "$main_py"
+  ! grep -Fq '/api/identity' "$main_py"
+  grep -Fq '/identity' "${project}/src/testapp/auth/router.py"
+  grep -Fq 'router = APIRouter' "${project}/src/testapp/auth/router.py"
 }

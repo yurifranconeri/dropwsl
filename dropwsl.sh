@@ -6,7 +6,7 @@ set -Eeuo pipefail
 # dropwsl (Cloud-Native) -- Orchestrator
 # Supported: Ubuntu 22.04+, Debian 12+
 # Installs: systemd, Docker Engine + Compose v2 + BuildX,
-# kubectl (apt repo), kind, helm, Azure CLI, GitHub CLI
+# kubectl (apt repo), kind, helm, Azure CLI, GitHub CLI, .NET SDK, PAC CLI
 # Optional: VS Code extensions (if `code` exists)
 # Validation: validate (default runs install then validate)
 # ==========================================

@@ -22,6 +22,11 @@ apply_layer_streamlit() {
   local tpl_dir; tpl_dir="$(find_layer_templates_dir "python" "streamlit")"
   inject_fragment "${tpl_dir}/fragments/requirements.txt" "${project_path}/requirements.txt"
 
+  # ---- 1a. .gitignore: ignore Streamlit secrets file (st.secrets backend) ----
+  if [[ -f "${project_path}/.gitignore" ]]; then
+    inject_fragment "${tpl_dir}/fragments/gitignore.txt" "${project_path}/.gitignore"
+  fi
+
   # ---- 2. .streamlit/config.toml (no-clobber) ----
   local streamlit_dir="${project_path}/.streamlit"
   if [[ ! -f "${streamlit_dir}/config.toml" ]]; then

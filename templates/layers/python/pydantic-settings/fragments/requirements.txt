@@ -1,0 +1,2 @@
+# -- dropwsl:pydantic-settings --
+pydantic-settings>=2.4,<3.0

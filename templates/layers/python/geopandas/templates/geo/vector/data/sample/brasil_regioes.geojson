@@ -1,0 +1,42 @@
+{
+  "type": "FeatureCollection",
+  "name": "brasil_regioes",
+  "crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:EPSG::4674" } },
+  "features": [
+    {
+      "type": "Feature",
+      "properties": { "sigla": "N",  "nome": "Norte",        "regiao": "Norte" },
+      "geometry": { "type": "Polygon", "coordinates": [[
+        [-73.99, 5.27], [-46.00, 5.27], [-46.00, -13.00], [-73.99, -13.00], [-73.99, 5.27]
+      ]]}
+    },
+    {
+      "type": "Feature",
+      "properties": { "sigla": "NE", "nome": "Nordeste",     "regiao": "Nordeste" },
+      "geometry": { "type": "Polygon", "coordinates": [[
+        [-48.50, -1.00], [-34.79, -1.00], [-34.79, -18.30], [-48.50, -18.30], [-48.50, -1.00]
+      ]]}
+    },
+    {
+      "type": "Feature",
+      "properties": { "sigla": "CO", "nome": "Centro-Oeste", "regiao": "Centro-Oeste" },
+      "geometry": { "type": "Polygon", "coordinates": [[
+        [-61.00, -7.00], [-45.90, -7.00], [-45.90, -24.00], [-61.00, -24.00], [-61.00, -7.00]
+      ]]}
+    },
+    {
+      "type": "Feature",
+      "properties": { "sigla": "SE", "nome": "Sudeste",      "regiao": "Sudeste" },
+      "geometry": { "type": "Polygon", "coordinates": [[
+        [-51.10, -14.20], [-39.70, -14.20], [-39.70, -25.30], [-51.10, -25.30], [-51.10, -14.20]
+      ]]}
+    },
+    {
+      "type": "Feature",
+      "properties": { "sigla": "S",  "nome": "Sul",          "regiao": "Sul" },
+      "geometry": { "type": "Polygon", "coordinates": [[
+        [-57.65, -22.50], [-48.00, -22.50], [-48.00, -33.75], [-57.65, -33.75], [-57.65, -22.50]
+      ]]}
+    }
+  ]
+}

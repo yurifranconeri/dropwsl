@@ -136,6 +136,81 @@ create_test_project() {
   echo "${PROJECTS_DIR}/${name}"
 }
 
+# ---- Self-contained layer router wiring ----
+#
+# The Self-Containment Principle requires layers (azure-identity, azure-keyvault,
+# azure-ai-foundry, ...) to ship FastAPI routers in their own packages and never
+# mutate main.py. E2E tests that hit those routes over HTTP must wire the routers
+# explicitly before the docker build.
+#
+# Usage: inject_fastapi_routers <project_dir> <router_spec> [router_spec...]
+#   router_spec format: "<module_path>:<symbol>:<prefix>"
+#   Example: "auth.router:router:/api"
+#
+# Detects src/ vs flat layout automatically. In src layout, prefixes module path
+# with the package name (first directory under src/).
+inject_fastapi_routers() {
+  local project_dir="$1"; shift
+
+  local main_py pkg_name="" src_layout=0
+  if [[ -d "${project_dir}/src" ]]; then
+    pkg_name="$(find "${project_dir}/src" -maxdepth 1 -mindepth 1 -type d -printf '%f\n' | head -n1)"
+    if [[ -n "$pkg_name" && -f "${project_dir}/src/${pkg_name}/main.py" ]]; then
+      main_py="${project_dir}/src/${pkg_name}/main.py"
+      src_layout=1
+    fi
+  fi
+  if [[ -z "$main_py" && -f "${project_dir}/main.py" ]]; then
+    main_py="${project_dir}/main.py"
+  fi
+  if [[ -z "$main_py" ]]; then
+    echo "ERROR: main.py not found for project ${project_dir}" >&2
+    return 1
+  fi
+
+  local imports="" wires=""
+  local spec module symbol prefix import_module
+  for spec in "$@"; do
+    IFS=':' read -r module symbol prefix <<< "$spec"
+    if (( src_layout )); then
+      import_module="${pkg_name}.${module}"
+    else
+      import_module="${module}"
+    fi
+    # Skip if already wired (idempotent)
+    grep -Fq "from ${import_module} import ${symbol} as " "$main_py" && continue
+    local alias="_router_$(echo "${module}_${symbol}" | tr './' '_')"
+    imports+="from ${import_module} import ${symbol} as ${alias}"$'\n'
+    wires+="app.include_router(${alias}, prefix=\"${prefix}\")"$'\n'
+  done
+
+  [[ -z "$imports" ]] && return 0
+
+  # Insert imports right after the "from fastapi" line and wires right after "app = FastAPI(...)"
+  local tmp_imports tmp_wires
+  tmp_imports="$(mktemp)"; tmp_wires="$(mktemp)"
+  printf "%s" "$imports" > "$tmp_imports"
+  printf "%s" "$wires" > "$tmp_wires"
+
+  if grep -nq "^from fastapi" "$main_py"; then
+    sed -i "/^from fastapi/r ${tmp_imports}" "$main_py"
+  else
+    cat "$tmp_imports" "$main_py" > "${main_py}.tmp" && mv "${main_py}.tmp" "$main_py"
+  fi
+
+  # Insert wires after the FastAPI() instantiation (single or multi-line)
+  if grep -nq "^app = FastAPI" "$main_py"; then
+    # Find the line where the FastAPI(...) call closes
+    local close_line
+    close_line="$(awk '/^app = FastAPI/{found=1} found && /\)/{print NR; exit}' "$main_py")"
+    if [[ -n "$close_line" ]]; then
+      sed -i "${close_line}r ${tmp_wires}" "$main_py"
+    fi
+  fi
+
+  rm -f "$tmp_imports" "$tmp_wires"
+}
+
 # ---- Dynamic ports ----
 
 find_free_port() {

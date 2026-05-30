@@ -1,5 +1,6 @@
 #!/usr/bin/env bats
 # tests/integration/layer_python/test_layer_azure_ai_foundry.bats
+# Validates the self-contained foundry/ package — never modifies main.py.
 
 setup() {
   load '../../helpers/layer_test_helper'
@@ -18,13 +19,12 @@ teardown() {
 
 # ── Core artifacts ─────────────────────────────────────────────────
 
-@test "layer_azure_ai_foundry: creates src/{pkg}/foundry/" {
+@test "layer_azure_ai_foundry: creates src/{pkg}/foundry/ with all files" {
   apply_layer_azure_ai_foundry "$PROJECT" "testapp" "python" "${PROJECT}/.devcontainer"
   assert [ -d "${PROJECT}/src/testapp/foundry" ]
-  assert [ -f "${PROJECT}/src/testapp/foundry/__init__.py" ]
-  assert [ -f "${PROJECT}/src/testapp/foundry/client.py" ]
-  assert [ -f "${PROJECT}/src/testapp/foundry/models.py" ]
-  assert [ -f "${PROJECT}/src/testapp/foundry/connections.py" ]
+  for f in __init__ __main__ client models connections router ui; do
+    assert [ -f "${PROJECT}/src/testapp/foundry/${f}.py" ]
+  done
 }
 
 @test "layer_azure_ai_foundry: requirements.txt contains azure-ai-projects" {
@@ -43,6 +43,43 @@ teardown() {
   grep -Fq "test_raises_without_endpoint" "${PROJECT}/tests/unit/test_foundry.py"
 }
 
+# ── Self-containment principle ────────────────────────────────────
+
+@test "layer_azure_ai_foundry: does NOT modify main.py" {
+  local before_hash; before_hash="$(md5sum "${PROJECT}/src/testapp/main.py" | cut -d' ' -f1)"
+  apply_layer_azure_ai_foundry "$PROJECT" "testapp" "python" "${PROJECT}/.devcontainer"
+  local after_hash; after_hash="$(md5sum "${PROJECT}/src/testapp/main.py" | cut -d' ' -f1)"
+  assert_equal "$before_hash" "$after_hash"
+}
+
+@test "layer_azure_ai_foundry: does NOT modify main.py even with FastAPI" {
+  source_layer "${REPO_ROOT}/lib/layers/python/fastapi.sh"
+  apply_layer_fastapi "$PROJECT" "testapp" "python" "${PROJECT}/.devcontainer"
+  local before_hash; before_hash="$(md5sum "${PROJECT}/src/testapp/main.py" | cut -d' ' -f1)"
+  apply_layer_azure_ai_foundry "$PROJECT" "testapp" "python" "${PROJECT}/.devcontainer"
+  local after_hash; after_hash="$(md5sum "${PROJECT}/src/testapp/main.py" | cut -d' ' -f1)"
+  assert_equal "$before_hash" "$after_hash"
+}
+
+@test "layer_azure_ai_foundry: __main__.py is runnable form" {
+  apply_layer_azure_ai_foundry "$PROJECT" "testapp" "python" "${PROJECT}/.devcontainer"
+  grep -Fq 'if __name__ == "__main__"' "${PROJECT}/src/testapp/foundry/__main__.py"
+  grep -Fq 'sys.exit(main())' "${PROJECT}/src/testapp/foundry/__main__.py"
+}
+
+@test "layer_azure_ai_foundry: router.py exports APIRouter with foundry routes" {
+  apply_layer_azure_ai_foundry "$PROJECT" "testapp" "python" "${PROJECT}/.devcontainer"
+  grep -Fq "router = APIRouter" "${PROJECT}/src/testapp/foundry/router.py"
+  grep -Fq "/foundry/status" "${PROJECT}/src/testapp/foundry/router.py"
+  grep -Fq "/models" "${PROJECT}/src/testapp/foundry/router.py"
+  grep -Fq "/connections" "${PROJECT}/src/testapp/foundry/router.py"
+}
+
+@test "layer_azure_ai_foundry: ui.py exports render_foundry_panel" {
+  apply_layer_azure_ai_foundry "$PROJECT" "testapp" "python" "${PROJECT}/.devcontainer"
+  grep -Fq "def render_foundry_panel" "${PROJECT}/src/testapp/foundry/ui.py"
+}
+
 # ── conftest fixture ──────────────────────────────────────────────
 
 @test "layer_azure_ai_foundry: conftest has requires_foundry fixture" {
@@ -50,71 +87,29 @@ teardown() {
   grep -Fq 'requires_foundry' "${PROJECT}/tests/conftest.py"
 }
 
-# ── Import path (src layout) ─────────────────────────────────────
+# ── Import paths (src layout) ─────────────────────────────────────
 
-@test "layer_azure_ai_foundry: client.py import uses src layout prefix" {
+@test "layer_azure_ai_foundry: client.py uses src layout prefix for auth import" {
   apply_layer_azure_ai_foundry "$PROJECT" "testapp" "python" "${PROJECT}/.devcontainer"
   grep -Fq "from testapp.auth.credential import" "${PROJECT}/src/testapp/foundry/client.py"
 }
 
-@test "layer_azure_ai_foundry: models.py import uses src layout prefix" {
+@test "layer_azure_ai_foundry: foundry submodules use relative imports" {
   apply_layer_azure_ai_foundry "$PROJECT" "testapp" "python" "${PROJECT}/.devcontainer"
-  grep -Fq "from testapp.foundry.client import" "${PROJECT}/src/testapp/foundry/models.py"
+  grep -Fq "from .client import" "${PROJECT}/src/testapp/foundry/models.py"
+  grep -Fq "from .client import" "${PROJECT}/src/testapp/foundry/connections.py"
 }
 
-@test "layer_azure_ai_foundry: connections.py import uses src layout prefix" {
-  apply_layer_azure_ai_foundry "$PROJECT" "testapp" "python" "${PROJECT}/.devcontainer"
-  grep -Fq "from testapp.foundry.client import" "${PROJECT}/src/testapp/foundry/connections.py"
-}
-
-@test "layer_azure_ai_foundry: test_foundry.py uses src layout imports" {
+@test "layer_azure_ai_foundry: test file uses src layout imports" {
   apply_layer_azure_ai_foundry "$PROJECT" "testapp" "python" "${PROJECT}/.devcontainer"
   grep -Fq "import testapp.foundry.client as client_mod" "${PROJECT}/tests/unit/test_foundry.py"
-  grep -Fq "import testapp.foundry.models as models_mod" "${PROJECT}/tests/unit/test_foundry.py"
-  grep -Fq "import testapp.foundry.connections as connections_mod" "${PROJECT}/tests/unit/test_foundry.py"
 }
 
-# ── Standalone mode (no FastAPI) ──────────────────────────────────
-
-@test "layer_azure_ai_foundry: standalone main.py has foundry verification" {
+@test "layer_azure_ai_foundry: README integration snippets use src prefix" {
   apply_layer_azure_ai_foundry "$PROJECT" "testapp" "python" "${PROJECT}/.devcontainer"
-  grep -Fq "foundry_health" "${PROJECT}/src/testapp/main.py"
-  grep -Fq "list_models" "${PROJECT}/src/testapp/main.py"
-  grep -Fq "list_connections" "${PROJECT}/src/testapp/main.py"
-}
-
-@test "layer_azure_ai_foundry: standalone main.py import uses src prefix" {
-  apply_layer_azure_ai_foundry "$PROJECT" "testapp" "python" "${PROJECT}/.devcontainer"
-  grep -Fq "from testapp.foundry.client import" "${PROJECT}/src/testapp/main.py"
-  grep -Fq "from testapp.foundry.models import" "${PROJECT}/src/testapp/main.py"
-  grep -Fq "from testapp.foundry.connections import" "${PROJECT}/src/testapp/main.py"
-}
-
-# ── With FastAPI ──────────────────────────────────────────────────
-
-@test "layer_azure_ai_foundry: with FastAPI → health check injected" {
-  source_layer "${REPO_ROOT}/lib/layers/python/fastapi.sh"
-  apply_layer_fastapi "$PROJECT" "testapp" "python" "${PROJECT}/.devcontainer"
-  apply_layer_azure_ai_foundry "$PROJECT" "testapp" "python" "${PROJECT}/.devcontainer"
-  grep -Fq 'health_status["azure_foundry"]' "${PROJECT}/src/testapp/main.py"
-}
-
-@test "layer_azure_ai_foundry: with FastAPI → all discovery routes injected" {
-  source_layer "${REPO_ROOT}/lib/layers/python/fastapi.sh"
-  apply_layer_fastapi "$PROJECT" "testapp" "python" "${PROJECT}/.devcontainer"
-  apply_layer_azure_ai_foundry "$PROJECT" "testapp" "python" "${PROJECT}/.devcontainer"
-  grep -Fq '/api/foundry/status' "${PROJECT}/src/testapp/main.py"
-  grep -Fq '/api/models' "${PROJECT}/src/testapp/main.py"
-  grep -Fq '/api/connections' "${PROJECT}/src/testapp/main.py"
-}
-
-@test "layer_azure_ai_foundry: with FastAPI → imports foundry modules" {
-  source_layer "${REPO_ROOT}/lib/layers/python/fastapi.sh"
-  apply_layer_fastapi "$PROJECT" "testapp" "python" "${PROJECT}/.devcontainer"
-  apply_layer_azure_ai_foundry "$PROJECT" "testapp" "python" "${PROJECT}/.devcontainer"
-  grep -Fq "from testapp.foundry.client import" "${PROJECT}/src/testapp/main.py"
-  grep -Fq "from testapp.foundry.models import" "${PROJECT}/src/testapp/main.py"
-  grep -Fq "from testapp.foundry.connections import" "${PROJECT}/src/testapp/main.py"
+  grep -Fq "from testapp.foundry.router import" "${PROJECT}/README.md"
+  grep -Fq "from testapp.foundry.ui import" "${PROJECT}/README.md"
+  grep -Fq "python -m testapp.foundry" "${PROJECT}/README.md"
 }
 
 # ── README ────────────────────────────────────────────────────────
@@ -136,7 +131,6 @@ teardown() {
   local snap1="${TEST_TEMP}/snap1"
   mkdir -p "$snap1"
   cp -a "$PROJECT" "$snap1/project"
-
   apply_layer_azure_ai_foundry "$PROJECT" "testapp" "python" "${PROJECT}/.devcontainer"
   diff -rq "$snap1/project" "$PROJECT"
 }
@@ -172,8 +166,6 @@ _setup_flat_project() {
   for f in "${tpl_dir}"/.[!.]*; do
     [[ -e "$f" ]] && [[ ! -d "$f" ]] && cp "$f" "${flat_project}/"
   done
-
-  # Apply azure-identity first (required dependency)
   apply_layer_azure_identity "$flat_project" "testapp" "python" "${flat_project}/.devcontainer" >&2
   echo "$flat_project"
 }
@@ -182,68 +174,22 @@ _setup_flat_project() {
   local flat_project; flat_project="$(_setup_flat_project)"
   apply_layer_azure_ai_foundry "$flat_project" "testapp" "python" "${flat_project}/.devcontainer"
   assert [ -d "${flat_project}/foundry" ]
-  assert [ -f "${flat_project}/foundry/__init__.py" ]
-  assert [ -f "${flat_project}/foundry/client.py" ]
-  assert [ -f "${flat_project}/foundry/models.py" ]
-  assert [ -f "${flat_project}/foundry/connections.py" ]
+  for f in __init__ __main__ client models connections router ui; do
+    assert [ -f "${flat_project}/foundry/${f}.py" ]
+  done
 }
 
 @test "layer_azure_ai_foundry: flat layout → no src prefix in imports" {
   local flat_project; flat_project="$(_setup_flat_project)"
   apply_layer_azure_ai_foundry "$flat_project" "testapp" "python" "${flat_project}/.devcontainer"
-  # client.py should use bare import (no testapp. prefix)
   grep -Fq "from auth.credential import" "${flat_project}/foundry/client.py"
-  # models.py and connections.py should use relative import
   grep -Fq "from .client import" "${flat_project}/foundry/models.py"
-  grep -Fq "from .client import" "${flat_project}/foundry/connections.py"
 }
 
-@test "layer_azure_ai_foundry: flat layout → standalone main.py imports" {
+@test "layer_azure_ai_foundry: flat layout → does NOT modify main.py" {
   local flat_project; flat_project="$(_setup_flat_project)"
+  local before_hash; before_hash="$(md5sum "${flat_project}/main.py" | cut -d' ' -f1)"
   apply_layer_azure_ai_foundry "$flat_project" "testapp" "python" "${flat_project}/.devcontainer"
-  grep -Fq "foundry_health" "${flat_project}/main.py"
-  grep -Fq "from foundry.client import" "${flat_project}/main.py"
-  grep -Fq "from foundry.models import" "${flat_project}/main.py"
-  grep -Fq "from foundry.connections import" "${flat_project}/main.py"
-}
-
-@test "layer_azure_ai_foundry: flat layout → test file uses bare imports" {
-  local flat_project; flat_project="$(_setup_flat_project)"
-  apply_layer_azure_ai_foundry "$flat_project" "testapp" "python" "${flat_project}/.devcontainer"
-  assert [ -f "${flat_project}/tests/unit/test_foundry.py" ]
-  grep -Fq "import foundry.client as client_mod" "${flat_project}/tests/unit/test_foundry.py"
-  grep -Fq "import foundry.models as models_mod" "${flat_project}/tests/unit/test_foundry.py"
-  grep -Fq "import foundry.connections as connections_mod" "${flat_project}/tests/unit/test_foundry.py"
-}
-
-@test "layer_azure_ai_foundry: flat layout + FastAPI → routes injected at root" {
-  local flat_project; flat_project="$(_setup_flat_project)"
-  source_layer "${REPO_ROOT}/lib/layers/python/fastapi.sh"
-  apply_layer_fastapi "$flat_project" "testapp" "python" "${flat_project}/.devcontainer"
-  apply_layer_azure_ai_foundry "$flat_project" "testapp" "python" "${flat_project}/.devcontainer"
-  grep -Fq '/api/foundry/status' "${flat_project}/main.py"
-  grep -Fq '/api/models' "${flat_project}/main.py"
-  grep -Fq '/api/connections' "${flat_project}/main.py"
-  grep -Fq 'health_status["azure_foundry"]' "${flat_project}/main.py"
-}
-
-@test "layer_azure_ai_foundry: flat layout + FastAPI → imports without prefix" {
-  local flat_project; flat_project="$(_setup_flat_project)"
-  source_layer "${REPO_ROOT}/lib/layers/python/fastapi.sh"
-  apply_layer_fastapi "$flat_project" "testapp" "python" "${flat_project}/.devcontainer"
-  apply_layer_azure_ai_foundry "$flat_project" "testapp" "python" "${flat_project}/.devcontainer"
-  grep -Fq "from foundry.client import" "${flat_project}/main.py"
-  grep -Fq "from foundry.models import" "${flat_project}/main.py"
-  grep -Fq "from foundry.connections import" "${flat_project}/main.py"
-}
-
-@test "layer_azure_ai_foundry: flat layout → idempotent" {
-  local flat_project; flat_project="$(_setup_flat_project)"
-  apply_layer_azure_ai_foundry "$flat_project" "testapp" "python" "${flat_project}/.devcontainer"
-  local snap1="${TEST_TEMP}/flat_snap1"
-  mkdir -p "$snap1"
-  cp -a "$flat_project" "$snap1/project"
-
-  apply_layer_azure_ai_foundry "$flat_project" "testapp" "python" "${flat_project}/.devcontainer"
-  diff -rq "$snap1/project" "$flat_project"
+  local after_hash; after_hash="$(md5sum "${flat_project}/main.py" | cut -d' ' -f1)"
+  assert_equal "$before_hash" "$after_hash"
 }

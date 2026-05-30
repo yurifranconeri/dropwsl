@@ -38,7 +38,7 @@ clean_soft() {
 
   if [[ "$ASSUME_YES" != true ]]; then
     echo
-    echo "This will remove: Docker, kubectl, kind, helm, Azure CLI, GitHub CLI,"
+    echo "This will remove: Docker, kubectl, kind, helm, Azure CLI, GitHub CLI, Node.js, Bun, PAC CLI, .NET SDK,"
     echo "GCM, wsl-vpnkit service, VS Code extensions (Windows side) and the cloned dropwsl repository."
     echo "Note: the wsl-vpnkit distro is shared across all WSL distros and will NOT be removed."
     echo
@@ -119,6 +119,33 @@ clean_soft() {
   run_quiet sudo apt-get purge -y gh 2>/dev/null || true
   sudo rm -f /etc/apt/sources.list.d/github-cli.list
   sudo rm -f /etc/apt/keyrings/githubcli-archive-keyring.gpg
+
+  # Node.js
+  if has_cmd node || dpkg -l nodejs >/dev/null 2>&1; then
+    log "Removing Node.js"
+    run_quiet sudo apt-get purge -y nodejs 2>/dev/null || true
+    sudo rm -f /etc/apt/sources.list.d/nodesource.list
+    sudo rm -f /etc/apt/keyrings/nodesource.gpg
+  fi
+
+  # Bun
+  if has_cmd bun; then
+    log "Removing Bun"
+    sudo rm -f /usr/local/bin/bun
+  fi
+
+  # PAC CLI (must be removed before .NET SDK -- needs dotnet to uninstall)
+  if has_cmd pac; then
+    log "Removing PAC CLI"
+    dotnet tool uninstall --global Microsoft.PowerApps.CLI.Tool 2>/dev/null || true
+  fi
+
+  # .NET SDK
+  if has_cmd dotnet || dpkg -l packages-microsoft-prod >/dev/null 2>&1; then
+    log "Removing .NET SDK"
+    run_quiet sudo apt-get purge -y 'dotnet-sdk-*' 'dotnet-runtime-*' 'aspnetcore-runtime-*' 'packages-microsoft-prod' 2>/dev/null || true
+    sudo rm -f /etc/apt/sources.list.d/microsoft-prod.list
+  fi
 
   # VS Code extensions (Windows side)
   if has_cmd cmd.exe; then

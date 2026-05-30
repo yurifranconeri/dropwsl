@@ -22,7 +22,7 @@ WSL handles infrastructure. Languages and dependencies live **inside containers*
 
 - `systemd` enabled in WSL (`/etc/wsl.conf`)
 - `apt upgrade` (security patches)
-- Base packages: `git`, `curl`, `wget`, `gnupg`, `ca-certificates`, `lsb-release`
+- Base packages: `git`, `curl`, `wget`, `gnupg`, `ca-certificates`, `lsb-release`, `unzip`, `bind9-dnsutils`
 
 ### Docker (official)
 
@@ -127,9 +127,15 @@ dropwsl.cmd (proxy, no Admin)
 core:
   docker:
     enabled: true
+  dotnet:
+    enabled: true
+    version: "10.0"
   kubectl:
     enabled: true
     version: "1.34"
+  pac-cli:
+    enabled: true
+    version: "2.5.1"
   azure-cli:
     enabled: false    # ← disabled, won't be installed
 ```
@@ -162,6 +168,26 @@ defaults:
 | Phase ordering | Layers declare `_LAYER_PHASE` for execution order |
 | Conflict detection | `_LAYER_CONFLICTS` validated before any layer runs |
 | Dependency tracking | `_LAYER_REQUIRES` checked before execution |
+| Self-containment | Capability layers ship a self-contained Python package with `__main__.py` — never modify the user's `main.py` |
+
+### Self-Containment Principle
+
+A layer that adds a runtime capability (database client, secret manager, AI client, etc.) **must** deliver it as a self-contained Python package, not by mutating the user's entry point.
+
+**Contract:**
+
+- Every capability layer creates `<pkg>/<layer_name>/` with at minimum: `__init__.py`, `__main__.py`, and one or more modules (`client.py`, `<feature>.py`).
+- The package must be runnable via `python -m <pkg>.<layer_name>` — typically a CLI inspector that validates configuration, prints health, and lists discoverable resources.
+- Framework integrations (FastAPI router, Streamlit panel, etc.) are **opt-in artifacts** owned by the layer (`router.py`, `ui.py`). The README documents a one-line integration snippet. The layer never edits `main.py`.
+
+**Why:**
+
+- Works identically in FastAPI, Streamlit, console, `src/` layout, flat layout, with or without `uv`, with or without `compose`, standalone or workspace.
+- Eliminates cross-layer detection (anti-pattern #15) — no branching on "is this a FastAPI project?"
+- Each layer is a black box: known inputs (project layout), known outputs (a package + opt-in integrations).
+- Idiomatic Python: `python -m pkg.layer` is the standard runnable convention.
+
+**Enforcement:** all current capability layers follow this principle (`azure-identity`, `azure-keyvault`, `azure-ai-foundry`, `azure-ai-chat`, `geopandas`). Any new capability layer must do the same.
 
 ## Design Decisions — Infrastructure Layers
 

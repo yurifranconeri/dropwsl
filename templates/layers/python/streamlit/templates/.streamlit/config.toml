@@ -2,6 +2,8 @@
 headless = true
 port = 8501
 address = "0.0.0.0"
+runOnSave = true
+fileWatcherType = "auto"
 
 [client]
 toolbarMode = "developer"
@@ -11,3 +13,12 @@ gatherUsageStats = false
 
 [theme]
 base = "light"
+
+# Streamlit >=1.50 validates theme.sidebar.* even when undefined and pollutes
+# the console with "Invalid color passed for primaryColor" warnings. Setting
+# the main colors explicitly silences the warning.
+[theme.sidebar]
+primaryColor = "#FF4B4B"
+textColor = "#262730"
+backgroundColor = "#F0F2F6"
+secondaryBackgroundColor = "#FFFFFF"

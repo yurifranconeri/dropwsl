@@ -20,7 +20,7 @@ install_vscode_extensions() {
   local ext
   for ext in "${VSCODE_EXTENSIONS[@]}"; do
     local output
-    output="$(cmd.exe /c "code --install-extension $ext" 2>&1 | tr -d '\r')" || true
+    output="$(cmd.exe /c "code --install-extension $ext --force" 2>&1 | tr -d '\r')" || true
     if [[ "$output" == *"successfully installed"* ]] || [[ "$output" == *"already installed"* ]]; then
       echo -e "  \033[32mOK\033[0m  - $ext"
     else

@@ -274,7 +274,7 @@ function Invoke-Update {
         $installDir = Get-ConfigInstallDir
         # Escape single quotes for bash (e.g. paths with apostrophes)
         $wslPathSafe = $wslPath -replace "'", "'\''"
-        $syncCmd = "mkdir -p $installDir && rsync -a --delete --exclude='.git' --exclude='.old' '$wslPathSafe/' $installDir/ && chmod +x $installDir/dropwsl.sh && ln -sf $installDir/dropwsl.sh ~/.local/bin/dropwsl && echo SYNC_OK"
+        $syncCmd = "mkdir -p $installDir && rsync -a --delete --exclude='.git' --exclude='.old' --exclude='tests/bats' '$wslPathSafe/' $installDir/ && chmod +x $installDir/dropwsl.sh && ln -sf $installDir/dropwsl.sh ~/.local/bin/dropwsl && echo SYNC_OK"
         $syncOutput = (wsl.exe -d $DistrName -- bash -c $syncCmd 2>$null) -join ''
         if ($syncOutput -match 'SYNC_OK') {
             $ver = (wsl.exe -d $DistrName -- bash -c "tr -d '\r' < $installDir/VERSION 2>/dev/null || echo unknown" 2>$null) -join ''

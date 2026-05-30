@@ -19,6 +19,8 @@ setup_file() {
 
   export FILE_TEMP="$TEST_TEMP"
   export PROJECT="$(create_test_project "python" "src,fastapi,azure-identity")"
+  # azure-identity is self-contained (auth/router.py) — wire it explicitly for the test
+  inject_fastapi_routers "$PROJECT" "auth.router:router:/api"
   export IMAGE_TAG="bats-azure-identity-$$"
   export APP_PORT="$(find_free_port)"
 
@@ -57,20 +59,7 @@ setup() {
   assert_output --partial '"status"'
 }
 
-@test "azure_identity_stack: health includes azure_identity field" {
-  run curl -sf "http://localhost:${APP_PORT}/health"
-  assert_success
-  assert_output --partial '"azure_identity"'
-}
-
-@test "azure_identity_stack: health azure_identity is degraded (no credentials)" {
-  run curl -sf "http://localhost:${APP_PORT}/health"
-  assert_success
-  # Without az login or env vars, credential_health() returns False → degraded
-  assert_output --partial '"degraded"'
-}
-
-# ── Identity endpoint ─────────────────────────────────────────────
+# ── Identity endpoint (self-contained router) ─────────────────────────────────────
 
 @test "azure_identity_stack: GET /api/identity returns 200" {
   run curl -sf "http://localhost:${APP_PORT}/api/identity"

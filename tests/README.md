@@ -49,8 +49,8 @@ tests/
 ├── bats/                    # bats-core submodules
 ├── unit/                    # Pure functions, parser, helpers
 ├── integration/             # File generation, layers, scaffold
-│   ├── layer_python/        # 1 file per Python layer (13 layers)
-│   ├── layer_shared/        # 1 file per shared layer (13 layers)
+│   ├── layer_python/        # 1 file per Python layer (15 layers)
+│   ├── layer_shared/        # 1 file per shared layer (12 layers) + isolation tests
 │   └── combinations/        # Multi-layer interaction tests
 ├── install/                 # Tool installer tests (stubbed)
 ├── uninstall/               # clean-soft, purge, unregister tests
@@ -165,7 +165,7 @@ Every layer test should include:
 | Level | Tests | Scope |
 |-------|-------|-------|
 | Unit | ~230 | Pure functions, parser, helpers |
-| Integration | ~400 | Layers (26 files), scaffold, workspace, inject_* |
+| Integration | ~400 | Layers (27 files), scaffold, workspace, inject_* |
 | Combinations | ~110 | Multi-layer interaction scenarios |
 | Install | ~48 | Tool installer stubs |
 | Uninstall | ~28 | clean-soft, purge, unregister |

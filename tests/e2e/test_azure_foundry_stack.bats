@@ -19,6 +19,10 @@ setup_file() {
 
   export FILE_TEMP="$TEST_TEMP"
   export PROJECT="$(create_test_project "python" "src,fastapi,azure-identity,azure-ai-foundry")"
+  # Both layers are self-contained — wire their routers explicitly
+  inject_fastapi_routers "$PROJECT" \
+    "auth.router:router:/api" \
+    "foundry.router:router:/api"
   export IMAGE_TAG="bats-azure-foundry-$$"
   export APP_PORT="$(find_free_port)"
 
@@ -57,22 +61,12 @@ setup() {
   assert_output --partial '"status"'
 }
 
-@test "azure_foundry_stack: health includes azure_identity field" {
-  run curl -sf "http://localhost:${APP_PORT}/health"
-  assert_success
-  assert_output --partial '"azure_identity"'
-}
+# ── Identity endpoint (self-contained router) ───────────────────────────
 
-@test "azure_foundry_stack: health includes azure_foundry field" {
-  run curl -sf "http://localhost:${APP_PORT}/health"
+@test "azure_foundry_stack: GET /api/identity returns 200" {
+  run curl -sf "http://localhost:${APP_PORT}/api/identity"
   assert_success
-  assert_output --partial '"azure_foundry"'
-}
-
-@test "azure_foundry_stack: health azure_foundry is degraded (no endpoint)" {
-  run curl -sf "http://localhost:${APP_PORT}/health"
-  assert_success
-  assert_output --partial '"degraded"'
+  assert_output --partial '"authenticated"'
 }
 
 # ── Foundry status endpoint ───────────────────────────────────────
@@ -137,14 +131,6 @@ setup() {
   assert_output --partial '/api/foundry/status'
   assert_output --partial '/api/models'
   assert_output --partial '/api/connections'
-}
-
-# ── Identity endpoint (from azure-identity layer) ─────────────────
-
-@test "azure_foundry_stack: GET /api/identity returns 200" {
-  run curl -sf "http://localhost:${APP_PORT}/api/identity"
-  assert_success
-  assert_output --partial '"authenticated"'
 }
 
 # ── Basic API functionality ───────────────────────────────────────

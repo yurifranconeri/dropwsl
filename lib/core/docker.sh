@@ -41,9 +41,16 @@ https://download.docker.com/linux/${DISTRO_ID} ${DISTRO_CODENAME} stable" \
   # causing packet loss and timeout on large downloads (pip wheels, npm packages).
   # Log rotation: prevents unbounded log growth that fills the WSL VHDX.
   # Without limits, a verbose container can generate GBs of logs in days.
-  # Values configurable via config.yaml (core.docker.mtu, log_max_size, log_max_file).
+  # default-address-pools: avoids conflicts with corporate VPN ranges (typically 172.x).
+  # Docker engine default pools live in 172.x and 192.168.x; on hosts where the VPN
+  # already consumes these ranges, the engine reports 'all predefined address pools
+  # have been fully subnetted' as soon as a couple of user networks are created.
+  # Pinning the pool to 10.200.0.0/16 with /24 subnets yields 256 isolated networks,
+  # well outside common VPN/LAN ranges. Default bridge (172.17.0.0/16) is unaffected.
+  # Values configurable via config.yaml (core.docker.mtu, log_max_size, log_max_file,
+  # address_pool_base, address_pool_size).
   if [[ ! -f /etc/docker/daemon.json ]]; then
-    log "Configuring /etc/docker/daemon.json (MTU ${DOCKER_MTU}, log rotation ${DOCKER_LOG_MAX_SIZE}x${DOCKER_LOG_MAX_FILE})"
+    log "Configuring /etc/docker/daemon.json (MTU ${DOCKER_MTU}, log rotation ${DOCKER_LOG_MAX_SIZE}x${DOCKER_LOG_MAX_FILE}, address pool ${DOCKER_ADDRESS_POOL_BASE} size ${DOCKER_ADDRESS_POOL_SIZE})"
     sudo tee /etc/docker/daemon.json >/dev/null <<DAEMON
 {
   "mtu": ${DOCKER_MTU},
@@ -51,7 +58,10 @@ https://download.docker.com/linux/${DISTRO_ID} ${DISTRO_CODENAME} stable" \
   "log-opts": {
     "max-size": "${DOCKER_LOG_MAX_SIZE}",
     "max-file": "${DOCKER_LOG_MAX_FILE}"
-  }
+  },
+  "default-address-pools": [
+    {"base": "${DOCKER_ADDRESS_POOL_BASE}", "size": ${DOCKER_ADDRESS_POOL_SIZE}}
+  ]
 }
 DAEMON
     run_quiet sudo systemctl restart docker
@@ -61,6 +71,9 @@ DAEMON
     fi
     if ! grep -q '"log-driver"' /etc/docker/daemon.json; then
       warn "daemon.json exists but lacks log rotation -- logs may grow unbounded"
+    fi
+    if ! grep -q '"default-address-pools"' /etc/docker/daemon.json; then
+      warn "daemon.json exists but lacks default-address-pools -- on VPN hosts you may see 'all predefined address pools have been fully subnetted'. Recommended pool: ${DOCKER_ADDRESS_POOL_BASE} size ${DOCKER_ADDRESS_POOL_SIZE}"
     fi
   fi
 

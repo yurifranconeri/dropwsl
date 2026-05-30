@@ -1,0 +1,2 @@
+# Streamlit secrets (API keys, tokens) -- loaded via st.secrets at runtime
+.streamlit/secrets.toml

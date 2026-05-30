@@ -212,6 +212,45 @@ teardown() {
   fi
 }
 
+# ── No CRLF in layer template/fragment text files ────────────────
+# Fragments injected with CRLF break inject_fragment's dedup guard:
+# the guard reads the first non-empty line ("data/\r"), but the injected
+# content is CRLF-normalized before append ("data/"), so subsequent calls
+# never match and duplicate the content.
+
+@test "hygiene: no CRLF in layer fragments" {
+  local crlf_files=""
+  local f
+  while IFS= read -r f; do
+    if grep -lU $'\r' "$f" >/dev/null 2>&1; then
+      crlf_files+="  ${f#${REPO_ROOT}/}\n"
+    fi
+  done < <(find "${REPO_ROOT}/templates/layers" -type f -path '*/fragments/*')
+
+  if [[ -n "$crlf_files" ]]; then
+    echo -e "Layer fragments with CRLF (must be LF-only):\n$crlf_files" >&2
+    fail "Fragments with CRLF break inject_fragment dedup — convert to LF"
+  fi
+}
+
+# ── No literal '<pkg>' placeholders in rendered templates/fragments ─────────
+# Files under templates/layers/<scope>/<layer>/{templates,fragments}/ pass
+# through render_template / inject_fragment, which only substitute {{KEY}}
+# placeholders. A literal '<pkg>' is therefore a bug: it ships to the user's
+# project verbatim. Use {{PKG_PREFIX}} (rendered to "<package>." or "") instead.
+# templates/agents/ is excluded because those fragments are meta-syntax meant
+# for AI agents to read, not for runtime substitution.
+
+@test "hygiene: no literal '<pkg>' placeholders in layer templates/fragments" {
+  local matches
+  matches="$(grep -rnF '<pkg>' "${REPO_ROOT}/templates/layers" 2>/dev/null || true)"
+  if [[ -n "$matches" ]]; then
+    echo "Literal '<pkg>' placeholders found (use {{PKG_PREFIX}} instead):" >&2
+    echo "$matches" >&2
+    fail "Templates/fragments must not ship literal '<pkg>' — use {{PKG_PREFIX}}"
+  fi
+}
+
 # ── No direct use of 'exit' in layer modules ─────────────────────
 
 @test "hygiene: no layer .sh uses 'exit' (must use 'return' or 'die')" {

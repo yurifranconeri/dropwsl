@@ -277,8 +277,9 @@ function Sync-WslConfig {
 }
 
 # Processes managed by dropwsl Defender exclusions (install adds, uninstall removes).
-# Current processes + legacy ones that older versions may have added.
-$script:DefenderManagedProcesses = @('vmmem', 'wsl.exe', 'wslhost.exe', 'docker.exe', 'node.exe', 'python.exe', 'dotnet.exe')
+# Superset: includes currently excluded + legacy + potential future processes.
+# Only a subset is actually added — see Sync-DefenderExclusions.
+$script:DefenderManagedProcesses = @('vmmem', 'wsl.exe', 'wslhost.exe', 'docker.exe', 'node.exe', 'bun.exe', 'python.exe', 'dotnet.exe')
 
 function Sync-DefenderExclusions {
     param([string]$ConfigFile)

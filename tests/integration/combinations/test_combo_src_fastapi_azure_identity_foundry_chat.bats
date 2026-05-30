@@ -1,8 +1,8 @@
 #!/usr/bin/env bats
 # tests/integration/combinations/test_combo_src_fastapi_azure_identity_foundry_chat.bats
 # Validates: src + fastapi + azure-identity + azure-ai-foundry + azure-ai-chat combination.
-# Chat (infra-inject phase) runs AFTER foundry (infra), so it must correctly
-# detect the async API and inject routes + imports into an already-enriched main.py.
+# All three azure layers are self-contained — they create auth/, foundry/, chat/
+# packages with opt-in routers and never modify main.py.
 
 setup() {
   load '../../helpers/layer_test_helper'
@@ -42,32 +42,43 @@ _apply_full_stack() {
 
 # ── Health checks ─────────────────────────────────────────────────
 
-@test "combo full stack: foundry health check present (chat has no health)" {
-  _apply_full_stack
-  grep -Fq 'health_status["azure_identity"]' "${PROJECT}/src/testapp/main.py"
-  grep -Fq 'health_status["azure_foundry"]' "${PROJECT}/src/testapp/main.py"
+@test "combo full stack: chat is fully self-contained — main.py untouched" {
+  apply_layer_src "$PROJECT" "testapp" "python" "${PROJECT}/.devcontainer"
+  apply_layer_fastapi "$PROJECT" "testapp" "python" "${PROJECT}/.devcontainer"
+  local before_hash; before_hash="$(md5sum "${PROJECT}/src/testapp/main.py" | cut -d' ' -f1)"
+  apply_layer_azure_identity "$PROJECT" "testapp" "python" "${PROJECT}/.devcontainer"
+  apply_layer_azure_ai_foundry "$PROJECT" "testapp" "python" "${PROJECT}/.devcontainer"
+  apply_layer_azure_ai_chat "$PROJECT" "testapp" "python" "${PROJECT}/.devcontainer"
+  local after_hash; after_hash="$(md5sum "${PROJECT}/src/testapp/main.py" | cut -d' ' -f1)"
+  assert_equal "$before_hash" "$after_hash"
 }
 
-# ── All routes present ────────────────────────────────────────────
-
-@test "combo full stack: all routes present in main.py" {
+@test "combo full stack: identity + foundry + chat all expose routers in their packages" {
   _apply_full_stack
-  grep -Fq '/api/identity' "${PROJECT}/src/testapp/main.py"
-  grep -Fq '/api/foundry/status' "${PROJECT}/src/testapp/main.py"
-  grep -Fq '/api/models' "${PROJECT}/src/testapp/main.py"
-  grep -Fq '/api/connections' "${PROJECT}/src/testapp/main.py"
-  grep -Fq '/api/chat' "${PROJECT}/src/testapp/main.py"
-  grep -Fq '/api/chat/stream' "${PROJECT}/src/testapp/main.py"
+  grep -Fq '/identity' "${PROJECT}/src/testapp/auth/router.py"
+  grep -Fq '/foundry/status' "${PROJECT}/src/testapp/foundry/router.py"
+  grep -Fq '/chat' "${PROJECT}/src/testapp/chat/router.py"
+  grep -Fq '/chat/stream' "${PROJECT}/src/testapp/chat/router.py"
+}
+
+# ── main.py untouched by any of the three layers ─────────────────────────
+
+@test "combo full stack: no /api routes leaked into main.py" {
+  _apply_full_stack
+  ! grep -Fq '/api/identity' "${PROJECT}/src/testapp/main.py"
+  ! grep -Fq '/api/foundry/status' "${PROJECT}/src/testapp/main.py"
+  ! grep -Fq '/api/chat' "${PROJECT}/src/testapp/main.py"
 }
 
 # ── Import prefixes ──────────────────────────────────────────────
 
-@test "combo full stack: all imports use src layout prefix" {
+@test "combo full stack: imports stay inside their own packages — main.py free of layer imports" {
   _apply_full_stack
-  grep -Fq "from testapp.auth.credential import" "${PROJECT}/src/testapp/main.py"
-  grep -Fq "from testapp.foundry.client import" "${PROJECT}/src/testapp/main.py"
-  grep -Fq "from testapp.chat import" "${PROJECT}/src/testapp/main.py"
-  grep -Fq "from testapp.chat.models import" "${PROJECT}/src/testapp/main.py"
+  # No layer imports leaked into main.py
+  ! grep -Fq "from testapp.auth.credential import" "${PROJECT}/src/testapp/main.py"
+  ! grep -Fq "from testapp.foundry.client import" "${PROJECT}/src/testapp/main.py"
+  ! grep -Fq "from testapp.chat import" "${PROJECT}/src/testapp/main.py"
+  ! grep -Fq "from testapp.chat.models import" "${PROJECT}/src/testapp/main.py"
 }
 
 @test "combo full stack: chat responses.py uses src prefix for foundry import" {
@@ -82,9 +93,10 @@ _apply_full_stack() {
 
 # ── Pydantic model in routes ─────────────────────────────────────
 
-@test "combo full stack: ChatRequest used in main.py routes" {
+@test "combo full stack: ChatRequest lives in chat/router.py, not main.py" {
   _apply_full_stack
-  grep -Fq "ChatRequest" "${PROJECT}/src/testapp/main.py"
+  grep -Fq "ChatRequest" "${PROJECT}/src/testapp/chat/router.py"
+  ! grep -Fq "ChatRequest" "${PROJECT}/src/testapp/main.py"
 }
 
 # ── Tests created ─────────────────────────────────────────────────
@@ -108,8 +120,4 @@ _apply_full_stack() {
   _apply_full_stack
   diff -rq "$snap1/chat" "${PROJECT}/src/testapp/chat"
   diff -q "$snap1/test_chat.py" "${PROJECT}/tests/unit/test_chat.py"
-  # Verify routes not duplicated in main.py
-  local count
-  count="$(grep -c '/api/chat"' "${PROJECT}/src/testapp/main.py")"
-  assert_equal "$count" "1"
 }

@@ -1,0 +1,2 @@
+# -- dropwsl:streamlit-auth --
+users_data/credentials.yaml

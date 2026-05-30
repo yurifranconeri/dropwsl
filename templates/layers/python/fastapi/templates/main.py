@@ -8,9 +8,11 @@ app = FastAPI(title="{{PROJECT_NAME}}", version="0.1.0")
 @app.get("/health")
 async def health() -> dict[str, str]:
     """Health check -- used by Docker HEALTHCHECK and load balancers."""
+    # `health_status` is a variable (not a literal) so layers like postgres/redis
+    # can inject mutations at the marker below. Do not inline -- breaks injection.
     health_status = {"status": "ok"}
     # -- dropwsl:health-checks --
-    return health_status
+    return health_status  # noqa: RET504
 
 
 @app.get("/")

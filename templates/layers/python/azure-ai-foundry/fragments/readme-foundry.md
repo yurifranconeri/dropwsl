@@ -1,41 +1,59 @@
 ## Azure AI Foundry
 
-The project uses **AIProjectClient** from `azure-ai-projects` to connect to a Microsoft Foundry project.
+The project ships a self-contained `foundry/` package using **AIProjectClient** from `azure-ai-projects`.
+The layer does **not** modify `main.py` — the dev opts in by importing what they need.
 
 ### Configuration
-
-Set the project endpoint:
 
 ```bash
 export AZURE_AI_PROJECT_ENDPOINT="https://<resource>.services.ai.azure.com/api/projects/<project>"
 ```
 
-Find this URL in your Microsoft Foundry project overview page.
+Find the URL in the Microsoft Foundry project overview page. Authentication reuses `auth/credential.py`.
 
-### API endpoints
-
-| Endpoint | Description |
-|---|---|
-| `GET /api/foundry/status` | Project dashboard: connection status, model count, connections |
-| `GET /api/models` | List model deployments (filters: `?model_name=`, `?model_publisher=`) |
-| `GET /api/models/{name}` | Full details of a single deployment |
-| `GET /api/connections` | List connected Azure resources (filter: `?connection_type=`) |
-| `GET /api/connections/default/{type}` | Default connection for a given type |
-
-### Local development
+### CLI inspector (always available)
 
 ```bash
-# Inside the dev container:
-az login
-export AZURE_AI_PROJECT_ENDPOINT="https://..."
-python main.py
+python -m {{PKG_PREFIX}}foundry
+```
+
+Validates the endpoint, prints health, lists model deployments and connections.
+
+### Programmatic use
+
+```python
+from {{PKG_PREFIX}}foundry import list_models, list_connections, get_openai_client
+
+for m in list_models():
+    print(m["name"], m["model_name"])
+
+oai = get_openai_client()
+```
+
+### Optional FastAPI integration
+
+```python
+from {{PKG_PREFIX}}foundry.router import router as foundry_router
+app.include_router(foundry_router, prefix="/api")
+```
+
+Adds `/api/foundry/status`, `/api/models`, `/api/models/{name}`, `/api/connections`, `/api/connections/default/{type}`.
+
+### Optional Streamlit integration
+
+```python
+import streamlit as st
+from {{PKG_PREFIX}}foundry.ui import render_foundry_panel
+render_foundry_panel(st)            # or st.sidebar
 ```
 
 ### Structure
 
-- `foundry/client.py` — `AIProjectClient` + `OpenAI` singletons, health check
-- `foundry/models.py` — Model deployment discovery and inspection
+- `foundry/client.py` — `AIProjectClient` + `OpenAI` singletons, `foundry_health()`
+- `foundry/models.py` — Model deployment discovery
 - `foundry/connections.py` — Connected resources discovery
-- `foundry/__init__.py` — Re-exports
+- `foundry/__main__.py` — CLI inspector
+- `foundry/router.py` — FastAPI APIRouter (opt-in)
+- `foundry/ui.py` — Streamlit panel (opt-in)
 
 > The Foundry client reuses the credential from `auth/credential.py` (azure-identity layer).

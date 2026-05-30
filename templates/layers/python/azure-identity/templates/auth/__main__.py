@@ -1,0 +1,41 @@
+"""Runnable token inspector for the Azure Identity module.
+
+Usage:
+    python -m {{PKG_PREFIX}}auth
+
+Acquires a token via DefaultAzureCredential and prints the decoded JWT claims.
+Never prints the token itself.
+"""
+
+import logging
+import sys
+
+from azure.core.exceptions import ClientAuthenticationError
+
+from .credential import credential_health, decode_token_claims, get_credential
+
+logging.basicConfig(level=logging.WARNING)
+
+
+def main() -> int:
+    credential = get_credential()
+    try:
+        token = credential.get_token("https://management.azure.com/.default")
+    except ClientAuthenticationError as exc:
+        print(f"Authentication failed: {exc.message}")
+        print("\nRun 'az login' to authenticate, then try again.")
+        return 1
+
+    claims = decode_token_claims(token.token)
+    print("Authenticated successfully.\n")
+    print(f"  Name:       {claims.get('name', 'N/A')}")
+    print(f"  Email:      {claims.get('upn', claims.get('unique_name', 'N/A'))}")
+    print(f"  Tenant ID:  {claims.get('tid', 'N/A')}")
+    print(f"  Object ID:  {claims.get('oid', 'N/A')}")
+    print(f"  Expires at: {claims.get('exp_iso', 'N/A')}")
+    print(f"\n  Health check: {'ok' if credential_health() else 'degraded'}")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

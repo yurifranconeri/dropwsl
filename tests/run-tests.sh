@@ -47,7 +47,9 @@ SUPPORT_VERSION="v0.3.0"
 
 install_bats() {
   local bats_dir="${REPO_ROOT}/tests/bats"
+  [[ "$bats_dir" == */tests/bats ]] || { echo -e "${RED}[ERROR]${RESET} Invalid bats_dir: $bats_dir"; exit 1; }
   echo -e "${CYAN}==> Installing bats-core (first run)...${RESET}"
+  rm -rf "${bats_dir}/bats-core" "${bats_dir}/bats-assert" "${bats_dir}/bats-support"
   mkdir -p "$bats_dir"
   git clone --depth 1 --branch "$BATS_VERSION" https://github.com/bats-core/bats-core.git "${bats_dir}/bats-core" 2>&1
   git clone --depth 1 --branch "$ASSERT_VERSION" https://github.com/bats-core/bats-assert.git "${bats_dir}/bats-assert" 2>&1

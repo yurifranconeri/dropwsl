@@ -1,8 +1,8 @@
 #!/usr/bin/env bats
 # tests/integration/combinations/test_combo_src_fastapi_azure_identity_foundry.bats
 # Validates: src + fastapi + azure-identity + azure-ai-foundry combination.
-# Both azure layers (infra phase) run AFTER fastapi (framework),
-# so they must correctly detect the async API and inject health checks + routes.
+# Both azure layers are self-contained (auth/ and foundry/ packages with router.py opt-in)
+# and never modify main.py.
 
 setup() {
   load '../../helpers/layer_test_helper'
@@ -32,38 +32,28 @@ teardown() {
   assert [ -f "${PROJECT}/src/testapp/foundry/connections.py" ]
 }
 
-@test "combo src+fastapi+identity+foundry: both health checks present" {
+@test "combo src+fastapi+identity+foundry: neither layer modifies main.py" {
+  apply_layer_src "$PROJECT" "testapp" "python" "${PROJECT}/.devcontainer"
+  apply_layer_fastapi "$PROJECT" "testapp" "python" "${PROJECT}/.devcontainer"
+  local before_hash; before_hash="$(md5sum "${PROJECT}/src/testapp/main.py" | cut -d' ' -f1)"
+  apply_layer_azure_identity "$PROJECT" "testapp" "python" "${PROJECT}/.devcontainer"
+  apply_layer_azure_ai_foundry "$PROJECT" "testapp" "python" "${PROJECT}/.devcontainer"
+  local after_hash; after_hash="$(md5sum "${PROJECT}/src/testapp/main.py" | cut -d' ' -f1)"
+  assert_equal "$before_hash" "$after_hash"
+}
+
+@test "combo src+fastapi+identity+foundry: both routers expose their endpoints" {
   apply_layer_src "$PROJECT" "testapp" "python" "${PROJECT}/.devcontainer"
   apply_layer_fastapi "$PROJECT" "testapp" "python" "${PROJECT}/.devcontainer"
   apply_layer_azure_identity "$PROJECT" "testapp" "python" "${PROJECT}/.devcontainer"
   apply_layer_azure_ai_foundry "$PROJECT" "testapp" "python" "${PROJECT}/.devcontainer"
-  grep -Fq 'health_status["azure_identity"]' "${PROJECT}/src/testapp/main.py"
-  grep -Fq 'health_status["azure_foundry"]' "${PROJECT}/src/testapp/main.py"
+  grep -Fq '/identity' "${PROJECT}/src/testapp/auth/router.py"
+  grep -Fq '/foundry/status' "${PROJECT}/src/testapp/foundry/router.py"
+  grep -Fq '/models' "${PROJECT}/src/testapp/foundry/router.py"
+  grep -Fq '/connections' "${PROJECT}/src/testapp/foundry/router.py"
 }
 
-@test "combo src+fastapi+identity+foundry: both routes present" {
-  apply_layer_src "$PROJECT" "testapp" "python" "${PROJECT}/.devcontainer"
-  apply_layer_fastapi "$PROJECT" "testapp" "python" "${PROJECT}/.devcontainer"
-  apply_layer_azure_identity "$PROJECT" "testapp" "python" "${PROJECT}/.devcontainer"
-  apply_layer_azure_ai_foundry "$PROJECT" "testapp" "python" "${PROJECT}/.devcontainer"
-  grep -Fq '/api/identity' "${PROJECT}/src/testapp/main.py"
-  grep -Fq '/api/foundry/status' "${PROJECT}/src/testapp/main.py"
-  grep -Fq '/api/models' "${PROJECT}/src/testapp/main.py"
-  grep -Fq '/api/connections' "${PROJECT}/src/testapp/main.py"
-}
-
-@test "combo src+fastapi+identity+foundry: import uses src layout prefix" {
-  apply_layer_src "$PROJECT" "testapp" "python" "${PROJECT}/.devcontainer"
-  apply_layer_fastapi "$PROJECT" "testapp" "python" "${PROJECT}/.devcontainer"
-  apply_layer_azure_identity "$PROJECT" "testapp" "python" "${PROJECT}/.devcontainer"
-  apply_layer_azure_ai_foundry "$PROJECT" "testapp" "python" "${PROJECT}/.devcontainer"
-  grep -Fq "from testapp.auth.credential import" "${PROJECT}/src/testapp/main.py"
-  grep -Fq "from testapp.foundry.client import" "${PROJECT}/src/testapp/main.py"
-  grep -Fq "from testapp.foundry.models import" "${PROJECT}/src/testapp/main.py"
-  grep -Fq "from testapp.foundry.connections import" "${PROJECT}/src/testapp/main.py"
-}
-
-@test "combo src+fastapi+identity+foundry: foundry client.py uses src prefix for auth" {
+@test "combo src+fastapi+identity+foundry: foundry uses src prefix to import auth" {
   apply_layer_src "$PROJECT" "testapp" "python" "${PROJECT}/.devcontainer"
   apply_layer_fastapi "$PROJECT" "testapp" "python" "${PROJECT}/.devcontainer"
   apply_layer_azure_identity "$PROJECT" "testapp" "python" "${PROJECT}/.devcontainer"

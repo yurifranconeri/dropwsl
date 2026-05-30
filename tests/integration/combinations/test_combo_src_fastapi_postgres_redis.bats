@@ -69,5 +69,8 @@ teardown() {
   apply_layer_redis "$PROJECT" "testapp" "python" "${PROJECT}/.devcontainer"
   grep -Fq 'health_status["postgres"] = "ok" if postgres_ok else "degraded"' "${PROJECT}/src/testapp/main.py"
   grep -Fq 'health_status["redis"] = "ok" if redis_ok else "degraded"' "${PROJECT}/src/testapp/main.py"
-  grep -Fxq '    return health_status' "${PROJECT}/src/testapp/main.py"
+  # The base template uses `return health_status  # noqa: RET504` to suppress the
+  # "unnecessary assignment" warning since postgres/redis layers inject mutations
+  # before the return. Match on prefix instead of full line.
+  grep -Eq '^    return health_status\b' "${PROJECT}/src/testapp/main.py"
 }

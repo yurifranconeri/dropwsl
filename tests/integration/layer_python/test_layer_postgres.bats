@@ -119,3 +119,20 @@ teardown() {
   grep -Fq 'Configure DATABASE_URL in .env.' "${PROJECT}/src/testapp/main.py"
   ! grep -Fq "docker compose up" "${PROJECT}/src/testapp/main.py"
 }
+
+# ---- SQLite-safe engine (unit tests fall back to SQLite in-memory) ----
+
+@test "layer_postgres: engine.py omits pool_size/max_overflow for SQLite" {
+  # Both modes (with/without compose) must guard pool kwargs against SQLite,
+  # because tests/fixtures/db.py uses sqlite:///:memory: and the global
+  # engine is imported eagerly via db/__init__.py.
+  apply_layer_postgres "$PROJECT" "testapp" "python" "${PROJECT}/.devcontainer"
+  grep -Eq 'DATABASE_URL\.startswith\("sqlite"\)' "${PROJECT}/src/testapp/db/engine.py"
+  grep -Fq '_pool_kwargs' "${PROJECT}/src/testapp/db/engine.py"
+}
+
+@test "layer_postgres: with compose → engine.py also SQLite-safe" {
+  apply_layer_compose "$PROJECT" "testapp" "python" "${PROJECT}/.devcontainer"
+  apply_layer_postgres "$PROJECT" "testapp" "python" "${PROJECT}/.devcontainer"
+  grep -Eq 'DATABASE_URL\.startswith\("sqlite"\)' "${PROJECT}/src/testapp/db/engine.py"
+}

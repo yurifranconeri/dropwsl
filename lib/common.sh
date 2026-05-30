@@ -31,11 +31,17 @@ KUBECTL_VERSION="1.34"
 KIND_VERSION="v0.27.0"
 HELM_VERSION="v3.17.3"
 GITLEAKS_VERSION="v8.21.2"
+NODEJS_VERSION="24"
+BUN_VERSION="1.3.12"
+DOTNET_VERSION="10.0"
+PAC_CLI_VERSION="2.5.1"
 
 # Docker daemon config (defaults; overridden by config)
 DOCKER_MTU=1400
 DOCKER_LOG_MAX_SIZE="10m"
 DOCKER_LOG_MAX_FILE=3
+DOCKER_ADDRESS_POOL_BASE="10.200.0.0/16"
+DOCKER_ADDRESS_POOL_SIZE=24
 
 # Enabled core tools (populated by load_config)
 ENABLED_CORE=()
@@ -674,7 +680,7 @@ ensure_supported_distro() {
 # ===========================================================================
 apt_base() {
   # Skip if all base packages are already installed
-  local base_pkgs=(ca-certificates curl wget git gnupg lsb-release)
+  local base_pkgs=(ca-certificates curl wget git gnupg lsb-release unzip bind9-dnsutils)
   local all_installed=true
   local pkg
   for pkg in "${base_pkgs[@]}"; do
@@ -943,6 +949,26 @@ load_config() {
   [[ -n "$v" ]] && DOCKER_LOG_MAX_SIZE="$v"
   v="$(echo "$_docker_section" | grep 'log_max_file:' | head -n1 | sed 's/^[^:]*:[[:space:]]*//' | tr -d '\r "')"
   [[ -n "$v" ]] && DOCKER_LOG_MAX_FILE="$v"
+  v="$(echo "$_docker_section" | grep 'address_pool_base:' | head -n1 | sed 's/^[^:]*:[[:space:]]*//' | sed 's/^["\x27]//;s/["\x27]$//' | tr -d '\r')"
+  [[ -n "$v" ]] && DOCKER_ADDRESS_POOL_BASE="$v"
+  v="$(echo "$_docker_section" | grep 'address_pool_size:' | head -n1 | sed 's/^[^:]*:[[:space:]]*//' | tr -d '\r "')"
+  [[ -n "$v" ]] && DOCKER_ADDRESS_POOL_SIZE="$v"
+
+  # Node.js version (scoped: core -> nodejs -> version)
+  v="$(sed -n '/^core:/,/^[a-z]/{/^[a-z]/d;p}' "$config_file" | grep -FA5 'nodejs:' | grep 'version:' | head -n1 | sed 's/^[^:]*:[[:space:]]*//' | sed 's/^["\x27]//;s/["\x27]$//' | tr -d '\r')"
+  [[ -n "$v" ]] && NODEJS_VERSION="$v"
+
+  # Bun version (scoped: core -> bun -> version)
+  v="$(sed -n '/^core:/,/^[a-z]/{/^[a-z]/d;p}' "$config_file" | grep -FA5 'bun:' | grep 'version:' | head -n1 | sed 's/^[^:]*:[[:space:]]*//' | sed 's/^["\x27]//;s/["\x27]$//' | tr -d '\r')"
+  [[ -n "$v" ]] && BUN_VERSION="$v"
+
+  # .NET SDK version (scoped: core -> dotnet -> version)
+  v="$(sed -n '/^core:/,/^[a-z]/{/^[a-z]/d;p}' "$config_file" | grep -FA5 'dotnet:' | grep 'version:' | head -n1 | sed 's/^[^:]*:[[:space:]]*//' | sed 's/^["\x27]//;s/["\x27]$//' | tr -d '\r')"
+  [[ -n "$v" ]] && DOTNET_VERSION="$v"
+
+  # PAC CLI version (scoped: core -> pac-cli -> version)
+  v="$(sed -n '/^core:/,/^[a-z]/{/^[a-z]/d;p}' "$config_file" | grep -FA5 'pac-cli:' | grep 'version:' | head -n1 | sed 's/^[^:]*:[[:space:]]*//' | sed 's/^["\x27]//;s/["\x27]$//' | tr -d '\r')"
+  [[ -n "$v" ]] && PAC_CLI_VERSION="$v"
 
   # Gitleaks version (layers section)
   v="$(_yaml_val 'gitleaks_version')"
@@ -1122,11 +1148,17 @@ show_config() {
   echo "    kubectl: ${KUBECTL_VERSION}"
   echo "    kind: ${KIND_VERSION}"
   echo "    helm: ${HELM_VERSION}"
+  echo "    nodejs: ${NODEJS_VERSION}"
+  echo "    bun: ${BUN_VERSION}"
+  echo "    dotnet: ${DOTNET_VERSION}"
+  echo "    pac-cli: ${PAC_CLI_VERSION}"
   echo ""
   echo "  docker.daemon:"
   echo "    mtu: ${DOCKER_MTU}"
   echo "    log_max_size: ${DOCKER_LOG_MAX_SIZE}"
   echo "    log_max_file: ${DOCKER_LOG_MAX_FILE}"
+  echo "    address_pool_base: ${DOCKER_ADDRESS_POOL_BASE}"
+  echo "    address_pool_size: ${DOCKER_ADDRESS_POOL_SIZE}"
   echo ""
   echo "git.defaults:"
   local key
@@ -1182,6 +1214,10 @@ show_first_run_banner() {
       helm)       ver="$(helm version --short 2>/dev/null)" ;;
       azure-cli)  ver="$(az version 2>/dev/null | grep -oP '"azure-cli": "\K[^"]+' || echo installed)" ;;
       github-cli) ver="$(gh --version 2>/dev/null | head -n1 | awk '{print $3}')" ;;
+      nodejs)     ver="$(node --version 2>/dev/null || echo installed)" ;;
+      bun)        ver="$(bun --version 2>/dev/null || echo installed)" ;;
+      dotnet)     ver="$(dotnet --version 2>/dev/null || echo installed)" ;;
+      pac-cli)    ver="$(pac --version 2>/dev/null | head -n2 | tail -n1 || echo installed)" ;;
       wsl-vpnkit) ver="${WSL_VPNKIT_VERSION}"; systemctl is-active --quiet wsl-vpnkit 2>/dev/null && ver="${ver} (active)" || ver="${ver} (inactive)" ;;
     esac
     printf "    * %-15s %s\n" "$tool" "${ver:-installed}"

@@ -10,6 +10,38 @@ _vpnkit_distro_exists() {
   wsl.exe -l -q 2>/dev/null | tr -d '\0\r' | grep -qx 'wsl-vpnkit'
 }
 
+# Returns the name of the currently default WSL distro (or empty if none).
+# wsl.exe -l -v output is UTF-16LE; strip nulls + CR, then locate line starting with '*'.
+_wsl_get_default_distro() {
+  wsl.exe -l -v 2>/dev/null | tr -d '\0\r' | awk '/^\*/ {print $2; exit}'
+}
+
+# Wrapper around `wsl.exe --import` that preserves the previous default distro.
+# Some WSL builds reset the default to the newly imported distro, which breaks
+# Remote-WSL (`code <path>` opens in the imported Alpine where vscode-server
+# cannot start). Saves the default before --import, restores it after if needed.
+_wsl_safe_import_distro() {
+  local distro_name="$1"
+  local install_dir="$2"
+  local tar_path="$3"
+
+  local prev_default
+  prev_default="$(_wsl_get_default_distro)"
+
+  wsl.exe --import "$distro_name" --version 2 "$install_dir" "$tar_path"
+  local import_rc=$?
+
+  if [[ -n "$prev_default" && "$prev_default" != "$distro_name" ]]; then
+    if [[ "$(_wsl_get_default_distro)" == "$distro_name" ]]; then
+      log "Restoring previous default WSL distro: ${prev_default}"
+      wsl.exe --set-default "$prev_default" \
+        || warn "Failed to restore default to '${prev_default}' -- run manually: wsl --set-default ${prev_default}"
+    fi
+  fi
+
+  return $import_rc
+}
+
 # Creates the systemd service file that invokes wsl-vpnkit from the host distro.
 # The service runs wsl.exe -d wsl-vpnkit, so the binaries live in the dedicated
 # Alpine distro while the service is managed by the user's main distro.
@@ -93,7 +125,7 @@ install_wsl-vpnkit() {
   local install_dir="${win_profile}\\wsl-vpnkit"
 
   log "Importing wsl-vpnkit distro (${install_dir})"
-  wsl.exe --import wsl-vpnkit --version 2 "$install_dir" "$win_tar_path"
+  _wsl_safe_import_distro "wsl-vpnkit" "$install_dir" "$win_tar_path"
   if [[ $? -ne 0 ]] || ! _vpnkit_distro_exists; then
     die_hint "Failed to import wsl-vpnkit distro" \
       "Insufficient disk space;WSL 2 not enabled;Antivirus blocking import" \

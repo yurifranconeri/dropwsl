@@ -28,9 +28,9 @@ teardown() {
   apply_layer_postgres "$PROJECT" "testapp" "python" "${PROJECT}/.devcontainer"
 
   grep -Fq '"initializeCommand"' "${PROJECT}/.devcontainer/devcontainer.json"
-  # initializeCommand uses docker compose to create network with proper labels
-  grep -Fq 'docker compose down' "${PROJECT}/.devcontainer/devcontainer.json"
-  grep -Fq 'docker compose up --no-start' "${PROJECT}/.devcontainer/devcontainer.json"
+  # initializeCommand pre-creates the compose network so the dev container
+  # can attach to it via runArgs --network=... before compose services run.
+  grep -Fq 'docker network create' "${PROJECT}/.devcontainer/devcontainer.json"
 }
 
 @test "standalone_infra: compose injects runArgs with network name" {

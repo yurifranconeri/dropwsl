@@ -44,9 +44,10 @@ teardown() {
   grep -Fq "[tool.mypy]" "${PROJECT}/pyproject.toml"
   # compose
   assert [ -f "${PROJECT}/compose.yaml" ]
-  # azure-identity
+  # azure-identity (self-contained — router opt-in, never mutates main.py)
   assert [ -d "${PROJECT}/src/testapp/auth" ]
-  grep -Fq 'health_status["azure_identity"]' "${PROJECT}/src/testapp/main.py"
+  assert [ -f "${PROJECT}/src/testapp/auth/router.py" ]
+  ! grep -Fq 'health_status["azure_identity"]' "${PROJECT}/src/testapp/main.py"
   # postgres + redis
   assert [ -d "${PROJECT}/src/testapp/db" ]
   assert [ -d "${PROJECT}/src/testapp/cache" ]

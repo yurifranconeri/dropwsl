@@ -110,6 +110,34 @@ validate_all() {
     _warn "gh not installed"
   fi
 
+  # nodejs
+  if has_cmd node; then
+    _ok "Node.js: $(node --version 2>/dev/null || echo installed)"
+  else
+    _warn "Node.js not installed"
+  fi
+
+  # bun
+  if has_cmd bun; then
+    _ok "Bun: $(bun --version 2>/dev/null || echo installed)"
+  else
+    _warn "Bun not installed"
+  fi
+
+  # dotnet
+  if has_cmd dotnet; then
+    _ok "dotnet SDK: $(dotnet --version 2>/dev/null || echo installed)"
+  else
+    _warn "dotnet SDK not installed"
+  fi
+
+  # pac
+  if has_cmd pac; then
+    _ok "pac CLI: $(pac --version 2>/dev/null | head -n2 | tail -n1 || echo installed)"
+  else
+    _warn "pac CLI not installed"
+  fi
+
   # wsl-vpnkit
   if systemctl is-active --quiet wsl-vpnkit 2>/dev/null; then
     _ok "wsl-vpnkit service active"
@@ -322,6 +350,18 @@ run_doctor() {
 
   if has_cmd gh; then _doc_ok "gh CLI: $(gh --version 2>/dev/null | head -n 1)"
   else _doc_warn "gh not installed"; fi
+
+  if has_cmd node; then _doc_ok "Node.js: $(node --version 2>/dev/null || echo installed)"
+  else _doc_warn "Node.js not installed"; fi
+
+  if has_cmd bun; then _doc_ok "Bun: $(bun --version 2>/dev/null || echo installed)"
+  else _doc_warn "Bun not installed"; fi
+
+  if has_cmd dotnet; then _doc_ok "dotnet SDK: $(dotnet --version 2>/dev/null || echo installed)"
+  else _doc_warn "dotnet SDK not installed"; fi
+
+  if has_cmd pac; then _doc_ok "pac CLI: $(pac --version 2>/dev/null | head -n2 | tail -n1 || echo installed)"
+  else _doc_warn "pac CLI not installed"; fi
 
   echo ""
   echo "-- Network ----------------------------------------------"

@@ -19,6 +19,12 @@ setup_file() {
 
   export FILE_TEMP="$TEST_TEMP"
   export PROJECT="$(create_test_project "python" "src,fastapi,azure-identity,azure-ai-foundry,azure-ai-chat")"
+  # identity + foundry are self-contained — wire their routers explicitly.
+  # chat layer still mutates main.py (its own routes are wired by the layer).
+  inject_fastapi_routers "$PROJECT" \
+    "auth.router:router:/api" \
+    "foundry.router:router:/api" \
+    "chat.router:router:/api"
   export IMAGE_TAG="bats-azure-chat-$$"
   export APP_PORT="$(find_free_port)"
 
@@ -55,13 +61,6 @@ setup() {
   run curl -sf "http://localhost:${APP_PORT}/health"
   assert_success
   assert_output --partial '"status"'
-}
-
-@test "azure_chat_stack: health includes azure_foundry field (degraded)" {
-  run curl -sf "http://localhost:${APP_PORT}/health"
-  assert_success
-  assert_output --partial '"azure_foundry"'
-  assert_output --partial '"degraded"'
 }
 
 # ── Chat endpoints (routes exist, 500 without credentials) ───────

@@ -41,6 +41,8 @@ core:
     mtu: 1400
     log_max_size: "10m"
     log_max_file: 3
+    address_pool_base: "10.200.0.0/16"   # CIDR base for user-created networks; avoids 172.x VPN conflicts
+    address_pool_size: 24                # /24 = 256 subnets x 254 IPs each (plenty for dev workflows)
   kubectl:
     enabled: true
     version: "1.34"
@@ -52,8 +54,20 @@ core:
     version: "v3.17.3"
   azure-cli:
     enabled: true
+  nodejs:
+    enabled: false             # Node.js LTS — needed for npx-based MCP servers and cross-project tooling
+    version: "24"
+  bun:
+    enabled: false             # Bun runtime — fast npm-compatible alternative (bunx)
+    version: "1.3.12"
+  dotnet:
+    enabled: false
+    version: "10.0"
   github-cli:
     enabled: true
+  pac-cli:
+    enabled: false             # Power Platform CLI — requires dotnet enabled
+    version: "2.5.1"
 
 # ---------------------------------------------------------------------------
 # Layer versions (--with)

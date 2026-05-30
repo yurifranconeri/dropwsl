@@ -45,6 +45,12 @@ teardown() {
   assert_success
 }
 
+@test "docker: daemon.json has default-address-pools configured" {
+  [[ -f /etc/docker/daemon.json ]]
+  run grep -F 'default-address-pools' /etc/docker/daemon.json
+  assert_success
+}
+
 # ---- kubectl ----
 
 @test "kubectl: is installed" {
@@ -141,6 +147,90 @@ teardown() {
     skip "github-cli disabled in config"
   fi
   run gh version
+  assert_success
+}
+
+# ---- .NET SDK ----
+
+@test "dotnet: is installed" {
+  if [[ "$(cfg_get 'core.dotnet.enabled' 'false')" != "true" ]]; then
+    skip "dotnet disabled in config"
+  fi
+  run command -v dotnet
+  assert_success
+}
+
+@test "dotnet: returns version" {
+  if [[ "$(cfg_get 'core.dotnet.enabled' 'false')" != "true" ]]; then
+    skip "dotnet disabled in config"
+  fi
+  run dotnet --version
+  assert_success
+}
+
+# ---- PAC CLI ----
+
+@test "pac-cli: is installed" {
+  if [[ "$(cfg_get 'core.pac-cli.enabled' 'false')" != "true" ]]; then
+    skip "pac-cli disabled in config"
+  fi
+  run command -v pac
+  assert_success
+}
+
+@test "pac-cli: returns version" {
+  if [[ "$(cfg_get 'core.pac-cli.enabled' 'false')" != "true" ]]; then
+    skip "pac-cli disabled in config"
+  fi
+  run pac --version
+  assert_success
+}
+
+# ---- Node.js ----
+
+@test "nodejs: is installed" {
+  if [[ "$(cfg_get 'core.nodejs.enabled' 'false')" != "true" ]]; then
+    skip "nodejs disabled in config"
+  fi
+  run command -v node
+  assert_success
+}
+
+@test "nodejs: returns version" {
+  if [[ "$(cfg_get 'core.nodejs.enabled' 'false')" != "true" ]]; then
+    skip "nodejs disabled in config"
+  fi
+  run node --version
+  assert_success
+}
+
+# ---- Bun ----
+
+@test "bun: is installed" {
+  if [[ "$(cfg_get 'core.bun.enabled' 'false')" != "true" ]]; then
+    skip "bun disabled in config"
+  fi
+  run command -v bun
+  assert_success
+}
+
+@test "bun: returns version" {
+  if [[ "$(cfg_get 'core.bun.enabled' 'false')" != "true" ]]; then
+    skip "bun disabled in config"
+  fi
+  run bun --version
+  assert_success
+}
+
+# ---- DNS utils ----
+
+@test "dig: is installed" {
+  run command -v dig
+  assert_success
+}
+
+@test "host: is installed" {
+  run command -v host
   assert_success
 }
 

@@ -1,5 +1,13 @@
-# requirements.txt -- add your dependencies here
-# Exemplos:
+# requirements.txt -- application dependencies
+#
+# Universal foundation (always installed): pydantic v2 powers typing-based
+# validation across FastAPI, SQLModel, streamlit-authenticator and most azure-*
+# SDKs. Pinning it explicitly keeps version control predictable and IDE
+# autocomplete working from the first `pip install`.
+pydantic>=2.7,<3.0
+
+# Add your project-specific dependencies below.
+# Examples:
 # fastapi>=0.115
 # uvicorn[standard]>=0.30
 # requests>=2.32

@@ -7,7 +7,7 @@
 
 ## Project in 30 seconds
 
-dropwsl provisions a complete dev environment on WSL with a single command. It installs Docker, kubectl, kind, helm, Azure CLI, GitHub CLI, configures Git + GCM, and scaffolds projects with ready-to-use Dev Containers.
+dropwsl provisions a complete dev environment on WSL with a single command. It installs Docker, kubectl, kind, helm, Azure CLI and GitHub CLI by default; Node.js, Bun, .NET SDK and PAC CLI are opt-in via `config.yaml`. It also configures Git + GCM and scaffolds projects with ready-to-use Dev Containers.
 
 **Philosophy:** WSL handles infra (Docker, k8s tooling). Languages and runtimes live **inside containers**, isolated per project. VS Code connects via Remote WSL + Dev Containers.
 

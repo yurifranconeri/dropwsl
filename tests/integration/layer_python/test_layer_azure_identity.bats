@@ -1,5 +1,6 @@
 #!/usr/bin/env bats
 # tests/integration/layer_python/test_layer_azure_identity.bats
+# Validates the self-contained auth/ package — never modifies main.py.
 
 setup() {
   load '../../helpers/layer_test_helper'
@@ -16,11 +17,14 @@ teardown() {
 
 # ── Core artifacts ─────────────────────────────────────────────────
 
-@test "layer_azure_identity: creates src/{pkg}/auth/" {
+@test "layer_azure_identity: creates src/{pkg}/auth/ with all files" {
   apply_layer_azure_identity "$PROJECT" "testapp" "python" "${PROJECT}/.devcontainer"
   assert [ -d "${PROJECT}/src/testapp/auth" ]
   assert [ -f "${PROJECT}/src/testapp/auth/__init__.py" ]
+  assert [ -f "${PROJECT}/src/testapp/auth/__main__.py" ]
   assert [ -f "${PROJECT}/src/testapp/auth/credential.py" ]
+  assert [ -f "${PROJECT}/src/testapp/auth/router.py" ]
+  assert [ -f "${PROJECT}/src/testapp/auth/ui.py" ]
 }
 
 @test "layer_azure_identity: requirements.txt contains azure-identity" {
@@ -39,21 +43,46 @@ teardown() {
   grep -Fq "test_returns_instance" "${PROJECT}/tests/unit/test_auth.py"
 }
 
+# ── Self-containment principle ────────────────────────────────────
+
+@test "layer_azure_identity: does NOT modify main.py" {
+  local before_hash; before_hash="$(md5sum "${PROJECT}/src/testapp/main.py" | cut -d' ' -f1)"
+  apply_layer_azure_identity "$PROJECT" "testapp" "python" "${PROJECT}/.devcontainer"
+  local after_hash; after_hash="$(md5sum "${PROJECT}/src/testapp/main.py" | cut -d' ' -f1)"
+  assert_equal "$before_hash" "$after_hash"
+}
+
+@test "layer_azure_identity: does NOT modify main.py even when FastAPI is present" {
+  source_layer "${REPO_ROOT}/lib/layers/python/fastapi.sh"
+  apply_layer_fastapi "$PROJECT" "testapp" "python" "${PROJECT}/.devcontainer"
+  local before_hash; before_hash="$(md5sum "${PROJECT}/src/testapp/main.py" | cut -d' ' -f1)"
+  apply_layer_azure_identity "$PROJECT" "testapp" "python" "${PROJECT}/.devcontainer"
+  local after_hash; after_hash="$(md5sum "${PROJECT}/src/testapp/main.py" | cut -d' ' -f1)"
+  assert_equal "$before_hash" "$after_hash"
+}
+
+@test "layer_azure_identity: __main__.py is runnable form" {
+  apply_layer_azure_identity "$PROJECT" "testapp" "python" "${PROJECT}/.devcontainer"
+  grep -Fq 'if __name__ == "__main__"' "${PROJECT}/src/testapp/auth/__main__.py"
+  grep -Fq 'sys.exit(main())' "${PROJECT}/src/testapp/auth/__main__.py"
+}
+
+@test "layer_azure_identity: router.py exports APIRouter with /identity" {
+  apply_layer_azure_identity "$PROJECT" "testapp" "python" "${PROJECT}/.devcontainer"
+  grep -Fq "router = APIRouter" "${PROJECT}/src/testapp/auth/router.py"
+  grep -Fq "/identity" "${PROJECT}/src/testapp/auth/router.py"
+}
+
+@test "layer_azure_identity: ui.py exports render_identity_panel" {
+  apply_layer_azure_identity "$PROJECT" "testapp" "python" "${PROJECT}/.devcontainer"
+  grep -Fq "def render_identity_panel" "${PROJECT}/src/testapp/auth/ui.py"
+}
+
 # ── post-create.sh ────────────────────────────────────────────────
 
 @test "layer_azure_identity: post-create.sh has az login check" {
   apply_layer_azure_identity "$PROJECT" "testapp" "python" "${PROJECT}/.devcontainer"
   grep -Fq 'az account show' "${PROJECT}/.devcontainer/post-create.sh"
-}
-
-@test "layer_azure_identity: post-create.sh check is before Environment ready" {
-  apply_layer_azure_identity "$PROJECT" "testapp" "python" "${PROJECT}/.devcontainer"
-  local check_line ready_line
-  check_line="$(grep -n 'az account show' "${PROJECT}/.devcontainer/post-create.sh" | head -n1 | cut -d: -f1)"
-  ready_line="$(grep -n 'Environment ready' "${PROJECT}/.devcontainer/post-create.sh" | head -n1 | cut -d: -f1)"
-  assert [ -n "$check_line" ]
-  assert [ -n "$ready_line" ]
-  assert [ "$check_line" -lt "$ready_line" ]
 }
 
 # ── conftest fixture ──────────────────────────────────────────────
@@ -70,35 +99,18 @@ teardown() {
   grep -Fq "azure-cli" "${PROJECT}/.devcontainer/devcontainer.json"
 }
 
-# ── Standalone mode (no FastAPI) ──────────────────────────────────
+# ── Import paths (src layout) ─────────────────────────────────────
 
-@test "layer_azure_identity: standalone main.py has credential verification" {
+@test "layer_azure_identity: README integration snippets use src prefix" {
   apply_layer_azure_identity "$PROJECT" "testapp" "python" "${PROJECT}/.devcontainer"
-  grep -Fq "credential_health" "${PROJECT}/src/testapp/main.py"
-  grep -Fq "decode_token_claims" "${PROJECT}/src/testapp/main.py"
+  grep -Fq "from testapp.auth.router import" "${PROJECT}/README.md"
+  grep -Fq "from testapp.auth.ui import" "${PROJECT}/README.md"
+  grep -Fq "python -m testapp.auth" "${PROJECT}/README.md"
 }
 
-# ── With FastAPI ──────────────────────────────────────────────────
-
-@test "layer_azure_identity: with FastAPI → health check injected" {
-  source_layer "${REPO_ROOT}/lib/layers/python/fastapi.sh"
-  apply_layer_fastapi "$PROJECT" "testapp" "python" "${PROJECT}/.devcontainer"
+@test "layer_azure_identity: test file uses src layout import" {
   apply_layer_azure_identity "$PROJECT" "testapp" "python" "${PROJECT}/.devcontainer"
-  grep -Fq 'health_status["azure_identity"]' "${PROJECT}/src/testapp/main.py"
-}
-
-@test "layer_azure_identity: with FastAPI → /api/identity route" {
-  source_layer "${REPO_ROOT}/lib/layers/python/fastapi.sh"
-  apply_layer_fastapi "$PROJECT" "testapp" "python" "${PROJECT}/.devcontainer"
-  apply_layer_azure_identity "$PROJECT" "testapp" "python" "${PROJECT}/.devcontainer"
-  grep -Fq '/api/identity' "${PROJECT}/src/testapp/main.py"
-}
-
-@test "layer_azure_identity: with FastAPI → import credential_health" {
-  source_layer "${REPO_ROOT}/lib/layers/python/fastapi.sh"
-  apply_layer_fastapi "$PROJECT" "testapp" "python" "${PROJECT}/.devcontainer"
-  apply_layer_azure_identity "$PROJECT" "testapp" "python" "${PROJECT}/.devcontainer"
-  grep -Fq "from testapp.auth.credential import" "${PROJECT}/src/testapp/main.py"
+  grep -Fq "import testapp.auth.credential as mod" "${PROJECT}/tests/unit/test_auth.py"
 }
 
 # ── README ────────────────────────────────────────────────────────
@@ -118,36 +130,23 @@ teardown() {
 @test "layer_azure_identity: idempotent" {
   apply_layer_azure_identity "$PROJECT" "testapp" "python" "${PROJECT}/.devcontainer"
   local snap1="${TEST_TEMP}/snap1"
-  find "${PROJECT}/src/testapp/auth" -type f | sort | xargs md5sum > "$snap1" 2>/dev/null || true
+  mkdir -p "$snap1"
+  cp -a "$PROJECT" "$snap1/project"
   apply_layer_azure_identity "$PROJECT" "testapp" "python" "${PROJECT}/.devcontainer"
-  local snap2="${TEST_TEMP}/snap2"
-  find "${PROJECT}/src/testapp/auth" -type f | sort | xargs md5sum > "$snap2" 2>/dev/null || true
-  diff "$snap1" "$snap2"
-}
-
-@test "layer_azure_identity: idempotent with FastAPI" {
-  source_layer "${REPO_ROOT}/lib/layers/python/fastapi.sh"
-  apply_layer_fastapi "$PROJECT" "testapp" "python" "${PROJECT}/.devcontainer"
-  apply_layer_azure_identity "$PROJECT" "testapp" "python" "${PROJECT}/.devcontainer"
-  local count_before
-  count_before=$(grep -c "credential_health" "${PROJECT}/src/testapp/main.py" || true)
-  apply_layer_azure_identity "$PROJECT" "testapp" "python" "${PROJECT}/.devcontainer"
-  local count_afte
-  count_after=$(grep -c "credential_health" "${PROJECT}/src/testapp/main.py" || true)
-  assert [ "$count_before" -eq "$count_after" ]
+  diff -rq "$snap1/project" "$PROJECT"
 }
 
 # ── No CRLF ───────────────────────────────────────────────────────
 
-@test "layer_azure_identity: no CRLF" {
+@test "layer_azure_identity: no CRLF in auth/" {
   apply_layer_azure_identity "$PROJECT" "testapp" "python" "${PROJECT}/.devcontainer"
   ! grep -rP '\r' "${PROJECT}/src/testapp/auth/" 2>/dev/null
 }
 
 # ── Flat layout (no src/) ─────────────────────────────────────────
 
-@test "layer_azure_identity: flat layout → auth/ at project root" {
-  local flat_project="${TEST_TEMP}/flat_project"
+_setup_flat_project() {
+  local flat_project="${TEST_TEMP}/flat_project_$$"
   mkdir -p "${flat_project}/tests"
   local tpl_dir="${REPO_ROOT}/templates/devcontainer/python"
   cp -r "${tpl_dir}/.devcontainer" "${flat_project}/.devcontainer"
@@ -161,9 +160,40 @@ teardown() {
   for f in "${tpl_dir}"/.[!.]*; do
     [[ -e "$f" ]] && [[ ! -d "$f" ]] && cp "$f" "${flat_project}/"
   done
+  echo "$flat_project"
+}
 
+@test "layer_azure_identity: flat layout → auth/ at project root" {
+  local flat_project; flat_project="$(_setup_flat_project)"
   apply_layer_azure_identity "$flat_project" "testapp" "python" "${flat_project}/.devcontainer"
   assert [ -d "${flat_project}/auth" ]
+  assert [ -f "${flat_project}/auth/__init__.py" ]
+  assert [ -f "${flat_project}/auth/__main__.py" ]
   assert [ -f "${flat_project}/auth/credential.py" ]
-  grep -Fq "credential_health" "${flat_project}/main.py"
+  assert [ -f "${flat_project}/auth/router.py" ]
+  assert [ -f "${flat_project}/auth/ui.py" ]
+}
+
+@test "layer_azure_identity: flat layout → README uses bare import" {
+  local flat_project; flat_project="$(_setup_flat_project)"
+  apply_layer_azure_identity "$flat_project" "testapp" "python" "${flat_project}/.devcontainer"
+  grep -Fq "from auth.router import" "${flat_project}/README.md"
+  grep -Fq "from auth.ui import" "${flat_project}/README.md"
+  ! grep -Fq "from testapp.auth" "${flat_project}/README.md"
+}
+
+@test "layer_azure_identity: flat layout → does NOT modify main.py" {
+  local flat_project; flat_project="$(_setup_flat_project)"
+  local before_hash; before_hash="$(md5sum "${flat_project}/main.py" | cut -d' ' -f1)"
+  apply_layer_azure_identity "$flat_project" "testapp" "python" "${flat_project}/.devcontainer"
+  local after_hash; after_hash="$(md5sum "${flat_project}/main.py" | cut -d' ' -f1)"
+  assert_equal "$before_hash" "$after_hash"
+}
+
+# ── Metadata ──────────────────────────────────────────────────────
+
+@test "layer_azure_identity: phase is infra" {
+  local phase
+  phase="$(grep -m1 '^_LAYER_PHASE=' "${REPO_ROOT}/lib/layers/python/azure-identity.sh" | cut -d'"' -f2)"
+  assert_equal "$phase" "infra"
 }

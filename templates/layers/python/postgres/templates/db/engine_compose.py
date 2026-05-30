@@ -12,12 +12,18 @@ DATABASE_URL = os.getenv(
     "postgresql+psycopg://postgres:changeme@postgres:5432/{{DB_NAME}}",
 )
 
+# SQLite uses SingletonThreadPool, which rejects QueuePool kwargs.
+# Condition pool tuning to non-SQLite dialects so unit tests (SQLite in-memory)
+# and production (Postgres) share the same engine module.
+_pool_kwargs: dict = {}
+if not DATABASE_URL.startswith("sqlite"):
+    _pool_kwargs = {"pool_size": 5, "max_overflow": 10}
+
 engine = create_engine(
     DATABASE_URL,
-    pool_size=5,
-    max_overflow=10,
     pool_pre_ping=True,
     echo=False,
+    **_pool_kwargs,
 )
 
 SessionLocal = sessionmaker(bind=engine, expire_on_commit=False)

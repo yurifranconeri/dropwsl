@@ -46,16 +46,20 @@ ENV PATH="${VIRTUAL_ENV}/bin:${PATH}"
 # pip.conf: generous timeout for large downloads on WSL/VPN networks
 COPY pip.conf /etc/pip.conf
 
-# Activate venv in .bashrc so the prompt shows (venv)
-RUN python -m venv $VIRTUAL_ENV \
-    && chown -R $USERNAME:$USERNAME $VIRTUAL_ENV \
+# /opt is owned by $USERNAME so venv create + pip install run unprivileged.
+# Activate venv in .bashrc so the prompt shows (venv).
+RUN install -d -o $USERNAME -g $USERNAME /opt \
     && echo '. /opt/venv/bin/activate' >> /home/$USERNAME/.bashrc
+
+USER $USERNAME
+
+RUN python -m venv $VIRTUAL_ENV
 
 # Pre-install deps at build time -- cached until requirements change.
 # --mount=type=cache: pip reuses downloads across builds (even with new deps).
 # .deps-hash: allows post-create.sh to skip pip install if deps haven't changed.
-COPY requirements.txt requirements-dev.txt /tmp/pip-reqs/
-RUN --mount=type=cache,target=/root/.cache/pip \
+COPY --chown=$USERNAME:$USERNAME requirements.txt requirements-dev.txt /tmp/pip-reqs/
+RUN --mount=type=cache,target=/home/vscode/.cache/pip,uid=1000,gid=1000 \
     pip install \
         -r /tmp/pip-reqs/requirements-dev.txt \
         -r /tmp/pip-reqs/requirements.txt \

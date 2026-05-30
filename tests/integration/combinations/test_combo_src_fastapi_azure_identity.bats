@@ -1,8 +1,8 @@
 #!/usr/bin/env bats
 # tests/integration/combinations/test_combo_src_fastapi_azure_identity.bats
 # Validates: src + fastapi + azure-identity combination.
-# The azure-identity layer (infra) runs AFTER fastapi (framework) due to phase ordering,
-# so it must correctly detect the async API and inject health check + /api/identity route.
+# The azure-identity layer is self-contained (auth/ package with router.py opt-in)
+# and never modifies main.py. The dev mounts the router via app.include_router.
 
 setup() {
   load '../../helpers/layer_test_helper'
@@ -28,25 +28,28 @@ teardown() {
   assert [ -f "${PROJECT}/src/testapp/auth/__init__.py" ]
 }
 
-@test "combo src+fastapi+identity: health includes azure_identity" {
+@test "combo src+fastapi+identity: identity does NOT modify FastAPI main.py" {
   apply_layer_src "$PROJECT" "testapp" "python" "${PROJECT}/.devcontainer"
   apply_layer_fastapi "$PROJECT" "testapp" "python" "${PROJECT}/.devcontainer"
+  local before_hash; before_hash="$(md5sum "${PROJECT}/src/testapp/main.py" | cut -d' ' -f1)"
   apply_layer_azure_identity "$PROJECT" "testapp" "python" "${PROJECT}/.devcontainer"
-  grep -Fq 'health_status["azure_identity"]' "${PROJECT}/src/testapp/main.py"
+  local after_hash; after_hash="$(md5sum "${PROJECT}/src/testapp/main.py" | cut -d' ' -f1)"
+  assert_equal "$before_hash" "$after_hash"
 }
 
-@test "combo src+fastapi+identity: /api/identity route present" {
+@test "combo src+fastapi+identity: /api/identity available via opt-in router" {
   apply_layer_src "$PROJECT" "testapp" "python" "${PROJECT}/.devcontainer"
   apply_layer_fastapi "$PROJECT" "testapp" "python" "${PROJECT}/.devcontainer"
   apply_layer_azure_identity "$PROJECT" "testapp" "python" "${PROJECT}/.devcontainer"
-  grep -Fq '/api/identity' "${PROJECT}/src/testapp/main.py"
+  grep -Fq '/identity' "${PROJECT}/src/testapp/auth/router.py"
+  grep -Fq 'router = APIRouter' "${PROJECT}/src/testapp/auth/router.py"
 }
 
-@test "combo src+fastapi+identity: import uses src layout prefix" {
+@test "combo src+fastapi+identity: README documents src-layout integration" {
   apply_layer_src "$PROJECT" "testapp" "python" "${PROJECT}/.devcontainer"
   apply_layer_fastapi "$PROJECT" "testapp" "python" "${PROJECT}/.devcontainer"
   apply_layer_azure_identity "$PROJECT" "testapp" "python" "${PROJECT}/.devcontainer"
-  grep -Fq "from testapp.auth.credential import" "${PROJECT}/src/testapp/main.py"
+  grep -Fq "from testapp.auth.router import" "${PROJECT}/README.md"
 }
 
 @test "combo src+fastapi+identity: test_auth.py uses src layout import" {
@@ -71,7 +74,7 @@ teardown() {
 
 # ── With postgres + redis ─────────────────────────────────────────
 
-@test "combo src+fastapi+identity+postgres+redis: all health checks present" {
+@test "combo src+fastapi+identity+postgres+redis: postgres+redis health checks present, identity stays opt-in" {
   source_layer "${REPO_ROOT}/lib/layers/shared/compose.sh"
   source_layer "${REPO_ROOT}/lib/layers/python/postgres.sh"
   source_layer "${REPO_ROOT}/lib/layers/python/redis.sh"
@@ -82,9 +85,12 @@ teardown() {
   apply_layer_postgres "$PROJECT" "testapp" "python" "${PROJECT}/.devcontainer"
   apply_layer_redis "$PROJECT" "testapp" "python" "${PROJECT}/.devcontainer"
   local main_py="${PROJECT}/src/testapp/main.py"
-  grep -Fq 'health_status["azure_identity"]' "$main_py"
+  # postgres and redis still mutate main.py (legacy debt — separate cleanup)
   grep -Fq 'health_status["postgres"]' "$main_py"
   grep -Fq 'health_status["redis"]' "$main_py"
+  # identity follows the self-containment principle — auth/ package only
+  assert [ -f "${PROJECT}/src/testapp/auth/router.py" ]
+  ! grep -Fq 'health_status["azure_identity"]' "$main_py"
 }
 
 # ── devcontainer features ─────────────────────────────────────────
@@ -98,14 +104,12 @@ teardown() {
 
 # ── Idempotency ───────────────────────────────────────────────────
 
-@test "combo src+fastapi+identity: idempotent — no duplicate health checks" {
+@test "combo src+fastapi+identity: idempotent — auth/ package unchanged on re-apply" {
   apply_layer_src "$PROJECT" "testapp" "python" "${PROJECT}/.devcontainer"
   apply_layer_fastapi "$PROJECT" "testapp" "python" "${PROJECT}/.devcontainer"
   apply_layer_azure_identity "$PROJECT" "testapp" "python" "${PROJECT}/.devcontainer"
-  local count_before
-  count_before=$(grep -c 'azure_identity' "${PROJECT}/src/testapp/main.py" || true)
+  local before_hash; before_hash="$(find "${PROJECT}/src/testapp/auth" -type f -exec md5sum {} + | sort | md5sum)"
   apply_layer_azure_identity "$PROJECT" "testapp" "python" "${PROJECT}/.devcontainer"
-  local count_after
-  count_after=$(grep -c 'azure_identity' "${PROJECT}/src/testapp/main.py" || true)
-  assert [ "$count_before" -eq "$count_after" ]
+  local after_hash; after_hash="$(find "${PROJECT}/src/testapp/auth" -type f -exec md5sum {} + | sort | md5sum)"
+  assert_equal "$before_hash" "$after_hash"
 }

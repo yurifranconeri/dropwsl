@@ -5,7 +5,7 @@
 
 > Dev environment on WSL with a single command.
 
-dropwsl installs Docker, kubectl, kind, helm, Azure CLI, GitHub CLI, and generates projects with ready-to-use Dev Containers — all in one run.
+dropwsl installs Docker, kubectl, kind, helm, Azure CLI, GitHub CLI, and generates projects with ready-to-use Dev Containers — all in one run. Optional core tools include Node.js, Bun, .NET SDK, and PAC CLI.
 
 **Philosophy:** WSL handles infrastructure (Docker, k8s tooling). Languages and runtimes live **inside containers**, isolated per project. VS Code connects via Remote WSL + Dev Containers.
 
@@ -82,6 +82,10 @@ dropwsl new my-service python
 | helm | Official install script |
 | Azure CLI | Microsoft apt repo |
 | GitHub CLI | Official apt repo |
+| Node.js *(opt-in)* | NodeSource apt repo (LTS) |
+| Bun *(opt-in)* | GitHub release binary with SHA256 checksum |
+| .NET SDK *(opt-in)* | Microsoft apt repo (packages-microsoft-prod) |
+| PAC CLI *(opt-in)* | .NET global tool (NuGet, version-pinned) |
 | Git Credential Manager | Git for Windows (auto-configured) |
 | VS Code extensions | WSL, Dev Containers, Docker (Windows-side) |
 
@@ -124,10 +128,14 @@ dropwsl new my-api python --with src,fastapi,uv,gitleaks
 | `uv` | Replaces pip with uv (10-100x faster installs) |
 | `postgres` | SQLAlchemy 2.0 + psycopg3 + db/ package + compose service |
 | `redis` | Redis client + cache/ package + compose service |
-| `azure-identity` | Azure DefaultAzureCredential + `/api/identity` health check |
-| `azure-ai-foundry` | Azure AI Foundry client + models + connections (requires `azure-identity`) |
-| `azure-ai-chat` | Chat API with streaming SSE (requires `azure-ai-foundry`) |
+| `azure-identity` | Azure DefaultAzureCredential — self-contained `auth/` package with `__main__.py` token inspector, opt-in FastAPI router and Streamlit panel |
+| `azure-keyvault` | Azure Key Vault — self-contained `keyvault/` package with `__main__.py` CLI, opt-in FastAPI router and Streamlit panel (requires `azure-identity`) |
+| `azure-ai-foundry` | Azure AI Foundry — self-contained `foundry/` package with `__main__.py` inspector, opt-in FastAPI router and Streamlit panel (requires `azure-identity`) |
+| `azure-ai-chat` | Chat (Responses + Completions APIs, SSE streaming) — self-contained `chat/` package with `__main__.py` interactive CLI, opt-in FastAPI router and Streamlit panel (requires `azure-ai-foundry`) |
 | `streamlit-chat` | Chat UI frontend with streaming (requires `streamlit`) |
+| `streamlit-auth` | Form-based authentication — self-contained `users/` package with `__main__.py` CLI for user management (add/passwd/remove/list/gen-cookie-key), `require_login()` helper, bcrypt-hashed credentials in `users_data/credentials.yaml`, and storage abstracted via `CredentialStore` Protocol (requires `streamlit`) |
+| `pydantic-settings` | Typed configuration — self-contained `config/` package with `Settings(BaseSettings)`, `@lru_cache` `get_settings()` singleton, and `python -m <pkg>.config` CLI (`show` with secret masking, `validate`, `dump-env`, `schema`). Loads from env vars and `.env`, fails fast on missing/invalid fields, masks `SecretStr` in dumps. Works in FastAPI, Streamlit, console |
+| `geopandas` | GeoPandas + pyogrio + shapely + pyproj — self-contained `geo/vector/` package with `__main__.py` CLI inspector and a bundled `brasil_regioes` GeoJSON fixture |
 | `testcontainers` | Pytest fixtures with ephemeral PostgreSQL (requires `postgres`) |
 | `locust` | Load testing with locustfile.py |
 
@@ -222,7 +230,7 @@ vscode:
 | Document | Content |
 |----------|---------|
 | [Design](docs/DESIGN.md) | Architecture, what gets installed, project structure |
-| [Troubleshooting](docs/TROUBLESHOOTING.md) | Common errors and solutions |
+| [Troubleshooting](docs/troubleshooting.md) | Common errors and solutions |
 | [Tests](tests/README.md) | How to run tests and understand test structure |
 
 ## Contributing
